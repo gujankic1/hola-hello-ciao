@@ -2,7 +2,7 @@
 
 Weather Sensor Metrics API: receives readings from sensors (temperature, humidity, wind speed, ...) and will answer aggregate queries (min/max/sum/avg) over them. Built with FastAPI and SQLite.
 
-> **Status:** slice 1. Registering sensors and ingesting readings work end to end; the statistics query is next.
+> **Status:** slice 2. Registering sensors, ingesting readings and the statistics query work end to end.
 
 ## Stack
 
@@ -38,6 +38,18 @@ curl -X POST http://127.0.0.1:8000/api/v1/sensors/1/readings \
 
 Allowed metrics: `temperature`, `humidity`, `wind_speed`, `pressure`, `rainfall`; any other name is rejected with 422 ([ADR-005](docs/arc42/09-architecture-decisions.md)).
 
+Query statistics (min, max, sum or avg per metric): average temperature and humidity of sensor 1 over a window. Omit `sensor_ids` for all sensors; omit `from`/`to` for the last 24 h; a window must be 1 day to 31 days (`from` and `to` together, or `to` alone):
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/readings/statistics \
+  -H 'Content-Type: application/json' \
+  -d '{"sensor_ids": [1], "from": "2026-11-10T00:00:00Z", "to": "2026-11-17T00:00:00Z",
+       "metrics": [{"name": "temperature", "stat": "avg"}, {"name": "humidity", "stat": "avg"}]}'
+# -> {"from": ..., "to": ..., "results": [{"sensor_id": 1, "metric": "temperature", "stat": "avg", "value": 21.2, "count": 14}, ...]}
+```
+
+Results are per sensor and metric; `value` is `null` when there are no readings in the window.
+
 Reporting for an unknown sensor returns 404; sensors are never created implicitly.
 Errors share one shape: `{"error": {"code": "...", "message": "...", "details": [...]}}`.
 `GET /health` returns `{"status": "ok"}`.
@@ -57,7 +69,7 @@ uv run ruff check . && uv run mypy
 - Readings are stored one row per metric value ([ADR-003](docs/arc42/09-architecture-decisions.md)); metric names are a closed enum ([ADR-005](docs/arc42/09-architecture-decisions.md)).
 - Layered by feature (router → service → DB), see [ADR-002](docs/arc42/09-architecture-decisions.md).
 - REST design: sensor-scoped ingest, collection-level `POST /readings/statistics` for queries ([ADR-004](docs/arc42/09-architecture-decisions.md)).
-- Not yet done: the statistics endpoint (sensors, metrics, statistic, 1 day to 1 month range), sensor listing/lookup, authentication, Docker.
+- Not yet done: sensor listing/lookup, authentication, Docker.
 
 ## Documentation
 

@@ -15,3 +15,11 @@ def get_sensor(session: Session, sensor_id: int) -> SensorRead:
     if sensor is None:
         raise NotFoundError(f"Sensor {sensor_id} not found")
     return SensorRead(id=sensor.id, name=sensor.name)
+
+
+def ensure_sensors_exist(session: Session, sensor_ids: list[int]) -> None:
+    """NotFoundError naming every unknown id."""
+    found = repository.existing_ids(session, sensor_ids)
+    missing = [i for i in sensor_ids if i not in found]
+    if missing:
+        raise NotFoundError(f"Sensors not found: {', '.join(map(str, missing))}")

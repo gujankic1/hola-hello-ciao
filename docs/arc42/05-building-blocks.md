@@ -1,6 +1,6 @@
 # 5. Building blocks
 
-See [ADR-002](09-architecture-decisions.md). Features: `sensors` (registry) and `readings` (ingest; depends on `sensors.service.get_sensor` for the 404 check). Every feature has a `repository`; services never call the `Session` API directly. Create folders only when needed.
+See [ADR-002](09-architecture-decisions.md). Features: `sensors` (registry), `readings` (ingest; owns the `Metric` enum) and `statistics` (aggregate query; reads the `readings` table via its own repository). Both depend on `sensors.service` for the 404 check (`get_sensor`, `ensure_sensors_exist`). Every feature has a `repository`; services never call the `Session` API directly. Create folders only when needed.
 
 ## Level 1: layers
 

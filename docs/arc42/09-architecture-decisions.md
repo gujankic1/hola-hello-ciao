@@ -110,7 +110,7 @@ Resources and endpoints (all under `/api/v1`):
 | `POST /sensors/{sensor_id}/readings` | Ingest metric values for a sensor; 404 if the sensor does not exist | slice 1 |
 | `GET /sensors`, `GET /sensors/{sensor_id}` | List / fetch sensors | planned |
 | `GET /sensors/{sensor_id}/readings` | Raw readings of one sensor (time filter, paging) | optional, later |
-| `POST /readings/statistics` | Aggregate query (body: sensors, metrics + statistic, from/to) | next slice |
+| `POST /readings/statistics` | Aggregate query (body: sensors, metrics + statistic, from/to) | slice 2 |
 | `GET /health` | Liveness | slice 1 |
 
 Rules:
@@ -118,7 +118,8 @@ Rules:
 - **No implicit sensor creation.** Sensors must be registered first; ingest for an unknown sensor returns 404 (`not_found`).
 - **The sensor ID is in the path** for ingest, not in the body, so path and body can never disagree and ID validation happens before the body is read.
 - **Statistics live at collection level** (`/readings/statistics`), because a query spans many sensors; a per-sensor path would only cover one case and force a second endpoint.
-- **Statistics use POST with a body.** Sensors, per-metric statistics and a range are structured input; a typed body validates cleanly. Planned shape: `{"sensor_ids": [1, 2] (omitted = all), "metrics": [{"name": "temperature", "stat": "avg"}], "from": ..., "to": ...}`; default window last 24 h; range must be between 1 day and 1 month.
+- **Statistics use POST with a body.** Sensors, per-metric statistics and a range are structured input; a typed body validates cleanly. Shape: `{"sensor_ids": [1, 2] (omitted = all), "metrics": [{"name": "temperature", "stat": "avg"}], "from": ..., "to": ...}`; default window last 24 h; range must be between 1 day and 1 month.
+- **Statistics semantics (slice 2).** `metrics[].name` and `stat` (`min|max|sum|avg`) are enums. Window: neither `from` nor `to` = last 24 h ending now; only `to` = the 24 h before it; only `from` = 422; both = length from 1 day to 31 days inclusive ("one month" = 31 days). Naive datetimes are UTC; the window is `[from, to)`; the response echoes the resolved `from`/`to`. Results are per sensor and metric (`sensor_id, metric, stat, value, count`), never pooled across sensors. `value` is `null` for an explicitly requested sensor with no readings in the window; with all sensors only sensors that have data appear. Unknown `sensor_ids` return 404 naming every missing ID (checked in one query); empty lists, duplicate sensor IDs and duplicate metric/stat pairs return 422.
 - **No `GET /sensors/{id}/readings/{reading_id}`.** With ADR-003 one ingest call becomes several rows, so there is no single "reading" entity worth an ID, and the brief has no need to fetch, update or delete one value. If ever needed, storage would split into `readings` (event) and `reading_values` (metric/value).
 
 ### Alternatives considered for the statistics query
@@ -147,7 +148,7 @@ Ingest accepted any metric name, so typos or arbitrary keys from a misbehaving s
 
 ### Decision
 
-Metric names are a closed `Metric` enum in `readings/metrics.py`: `temperature`, `humidity`, `wind_speed`, `pressure`, `rainfall`. Ingest rejects unknown names with 422 (`validation_error`), and the statistics query will use the same enum. The column stays a plain string, so no migration is needed.
+Metric names are a closed `Metric` enum in `readings/metrics.py`: `temperature`, `humidity`, `wind_speed`, `pressure`, `rainfall`. Ingest rejects unknown names with 422 (`validation_error`), and the statistics query uses the same enum. The column stays a plain string, so no migration is needed.
 
 ### Reasons
 

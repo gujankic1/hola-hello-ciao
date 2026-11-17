@@ -11,10 +11,10 @@ Source: the "Weather Sensor Metrics API - Take-home brief" (Claude Doc owned by 
 | # | Requirement | Status |
 |---|---|---|
 | F1 | Receive new metric values for a sensor through an API call (sensors must be registered first) | slice 1 |
-| F2 | Answer queries: one/many/all sensors, one or more metrics, a statistic per metric (min, max, sum, avg), date range 1 day to 1 month (default: last 24 h) | planned |
+| F2 | Answer queries: one/many/all sensors, one or more metrics, a statistic per metric (min, max, sum, avg), date range 1 day to 1 month (default: last 24 h) | slice 2 |
 | T1 | REST API (UI optional), Python | slice 1 |
 | T2 | Data persisted in a database | slice 1 |
-| T3 | Input validation and exception handling | slice 1 (ingest) |
+| T3 | Input validation and exception handling | slice 1 (ingest), slice 2 (query) |
 | T4 | README with run instructions and approach notes | slice 1 |
 | T5 | Tests where useful (full coverage not expected) | slice 1 |
 | T6 | Public source repository | open |

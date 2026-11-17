@@ -1,4 +1,5 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -9,7 +10,8 @@ from sqlalchemy.orm import Session
 from hola_hello_ciao.core.db import Base, create_db_engine
 from hola_hello_ciao.core.deps import get_session
 from hola_hello_ciao.main import create_app
-from hola_hello_ciao.readings import models as readings_models  # noqa: F401
+from hola_hello_ciao.readings.metrics import Metric
+from hola_hello_ciao.readings.models import Reading
 from hola_hello_ciao.sensors.models import Sensor
 
 
@@ -46,3 +48,19 @@ def sensor_id(session: Session) -> int:
     session.add(sensor)
     session.commit()
     return sensor.id
+
+
+AddReading = Callable[[int, Metric, float, datetime], None]
+
+
+@pytest.fixture
+def add_reading(session: Session) -> AddReading:
+    """Insert one committed reading; aware datetimes are stored as naive UTC."""
+
+    def add(sensor_id: int, metric: Metric, value: float, at: datetime) -> None:
+        if at.tzinfo is not None:
+            at = at.astimezone(UTC).replace(tzinfo=None)
+        session.add(Reading(sensor_id=sensor_id, metric=metric.value, value=value, recorded_at=at))
+        session.commit()
+
+    return add

@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from hola_hello_ciao.readings.metrics import Metric
 from hola_hello_ciao.readings.models import Reading
 
 
@@ -42,6 +43,13 @@ def test_post_reading_stores_one_row_per_metric(
     assert {r.recorded_at for r in rows} == {datetime(2026, 11, 17, 10, 0)}
 
 
+@pytest.mark.parametrize("metric", [m.value for m in Metric])
+def test_every_known_metric_is_accepted(client: TestClient, sensor_id: int, metric: str) -> None:
+    response = client.post(url(sensor_id), json={"metrics": {metric: 1.5}})
+
+    assert response.status_code == 201
+
+
 def test_post_reading_defaults_recorded_at_to_now(
     client: TestClient, engine: Engine, sensor_id: int
 ) -> None:
@@ -75,6 +83,8 @@ def test_non_integer_sensor_id_is_rejected(client: TestClient) -> None:
         {"metrics": {}},  # empty metrics
         {"metrics": {"temperature": "warm"}},  # non-numeric value
         {"metrics": {"  ": 1}},  # blank metric name
+        {"metrics": {"temprature": 1}},  # unknown metric (typo)
+        {"metrics": {"temperature": 1, "bogus": 2}},  # one bad key rejects the whole call
         {"metrics": {"temperature": 1}, "recorded_at": "yesterday"},
     ],
 )

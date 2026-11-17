@@ -36,6 +36,8 @@ curl -X POST http://127.0.0.1:8000/api/v1/sensors/1/readings \
   -d '{"metrics": {"temperature": 21.5, "humidity": 40}}'
 ```
 
+Allowed metrics: `temperature`, `humidity`, `wind_speed`, `pressure`, `rainfall`; any other name is rejected with 422 ([ADR-005](docs/arc42/09-architecture-decisions.md)).
+
 Reporting for an unknown sensor returns 404; sensors are never created implicitly.
 Errors share one shape: `{"error": {"code": "...", "message": "...", "details": [...]}}`.
 `GET /health` returns `{"status": "ok"}`.
@@ -52,7 +54,7 @@ uv run ruff check . && uv run mypy
 ## Approach and trade-offs
 
 - One FastAPI app, one SQLite file, one process: the simplest thing that meets the brief.
-- Readings are stored one row per metric value so new metrics need no schema change ([ADR-003](docs/arc42/09-architecture-decisions.md)).
+- Readings are stored one row per metric value ([ADR-003](docs/arc42/09-architecture-decisions.md)); metric names are a closed enum ([ADR-005](docs/arc42/09-architecture-decisions.md)).
 - Layered by feature (router → service → DB), see [ADR-002](docs/arc42/09-architecture-decisions.md).
 - REST design: sensor-scoped ingest, collection-level `POST /readings/statistics` for queries ([ADR-004](docs/arc42/09-architecture-decisions.md)).
 - Not yet done: the statistics endpoint (sensors, metrics, statistic, 1 day to 1 month range), sensor listing/lookup, authentication, Docker.

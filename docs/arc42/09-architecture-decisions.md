@@ -89,7 +89,7 @@ Store one row per metric value: `readings(id, sensor_id, metric, value, recorded
 
 - More rows than a wide table (one per metric per reading); acceptable at PoC scale.
 - No per-metric typing, units or range checks yet; add a metric registry if needed.
-- Metric names are free text (trimmed); typos create new metrics.
+- Metric names were free text originally; superseded by ADR-005 (closed enum).
 
 ## ADR-004: REST resource design (sensor-scoped ingest, collection-level statistics)
 
@@ -134,3 +134,33 @@ Rules:
 - POST for a read-only query is not cacheable and not self-evidently safe; accepted trade-off (common pattern, e.g. Elasticsearch `_search`).
 - A sensors table and `POST /sensors` are needed already in slice 1 so that ingest is usable.
 - One ingest call cannot report for several sensors (no batching across sensors).
+
+## ADR-005: Closed set of metrics (enum)
+
+- **Status:** accepted
+- **Date:** 2026-11-17
+- **Supersedes:** the free-text metric names consequence of ADR-003
+
+### Context
+
+Ingest accepted any metric name, so typos or arbitrary keys from a misbehaving sensor created junk metrics that statistics queries would then have to cope with.
+
+### Decision
+
+Metric names are a closed `Metric` enum in `readings/metrics.py`: `temperature`, `humidity`, `wind_speed`, `pressure`, `rainfall`. Ingest rejects unknown names with 422 (`validation_error`), and the statistics query will use the same enum. The column stays a plain string, so no migration is needed.
+
+### Reasons
+
+- Bad input is rejected at the boundary and the allowed values appear in the OpenAPI schema.
+- Simplest option: no extra table, endpoints or configuration.
+
+### Consequences
+
+- Adding a metric is a code change and a deploy.
+- Still no per-metric units or value-range checks.
+- Rows written before this ADR keep whatever names they have.
+
+### Alternatives considered
+
+- **Configurable allow-list (env var):** no deploy for new metrics, but validated at runtime and invisible in OpenAPI.
+- **Metric registry table:** enables units and ranges but needs a migration and management endpoints; overkill for the PoC.

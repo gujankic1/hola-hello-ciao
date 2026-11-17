@@ -3,27 +3,14 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator
 
+from hola_hello_ciao.readings.metrics import Metric
+
 Value = Annotated[float, Field(allow_inf_nan=False)]
 
 
 class ReadingCreate(BaseModel):
-    metrics: dict[str, Value]
+    metrics: Annotated[dict[Metric, Value], Field(min_length=1)]
     recorded_at: datetime | None = None
-
-    @field_validator("metrics")
-    @classmethod
-    def _check_metrics(cls, metrics: dict[str, float]) -> dict[str, float]:
-        if not metrics:
-            raise ValueError("metrics must not be empty")
-        cleaned: dict[str, float] = {}
-        for name, value in metrics.items():
-            name = name.strip()
-            if not name:
-                raise ValueError("metric names must not be blank")
-            if name in cleaned:
-                raise ValueError(f"duplicate metric name: {name}")
-            cleaned[name] = value
-        return cleaned
 
     @field_validator("recorded_at")
     @classmethod
@@ -38,4 +25,4 @@ class ReadingCreate(BaseModel):
 class ReadingCreated(BaseModel):
     sensor_id: int
     recorded_at: datetime
-    metrics: dict[str, float]
+    metrics: dict[Metric, float]

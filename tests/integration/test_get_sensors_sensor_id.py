@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 URL = "/api/v1/sensors"
@@ -19,8 +20,9 @@ def test_unknown_sensor_returns_404(client: TestClient) -> None:
     assert response.json()["error"]["code"] == "not_found"
 
 
-def test_non_integer_sensor_id_is_rejected(client: TestClient) -> None:
-    response = client.get(f"{URL}/abc")
+@pytest.mark.parametrize("sensor_id", ["abc", 0, 2**63])  # 2**63 overflows SQLite INTEGER
+def test_invalid_sensor_id_is_rejected(client: TestClient, sensor_id: object) -> None:
+    response = client.get(f"{URL}/{sensor_id}")
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"

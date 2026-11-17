@@ -69,8 +69,9 @@ def test_unknown_sensor_returns_404_and_stores_nothing(client: TestClient, engin
     assert all_rows(engine) == []
 
 
-def test_non_integer_sensor_id_is_rejected(client: TestClient) -> None:
-    response = client.post(url("abc"), json={"metrics": {"temperature": 1}})
+@pytest.mark.parametrize("sensor_id", ["abc", 0, 2**63])  # 2**63 overflows SQLite INTEGER
+def test_invalid_sensor_id_is_rejected(client: TestClient, sensor_id: object) -> None:
+    response = client.post(url(sensor_id), json={"metrics": {"temperature": 1}})
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"

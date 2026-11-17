@@ -47,6 +47,14 @@ def register_error_handlers(app: FastAPI) -> None:
             content=_error_body(StorageError.code, "A storage error occurred"),
         )
 
+    @app.exception_handler(Exception)
+    async def _unexpected_error(_request: Request, _exc: Exception) -> JSONResponse:
+        # Last resort, no internals leaked; Starlette still re-raises so the server logs it.
+        return JSONResponse(
+            status_code=AppError.status_code,
+            content=_error_body(AppError.code, "An unexpected error occurred"),
+        )
+
     @app.exception_handler(RequestValidationError)
     async def _validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
         details = [{"loc": list(e["loc"]), "msg": e["msg"]} for e in exc.errors()]

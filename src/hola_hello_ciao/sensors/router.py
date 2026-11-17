@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.deps import get_session
 from hola_hello_ciao.sensors import service
-from hola_hello_ciao.sensors.schemas import SensorCreate, SensorRead
+from hola_hello_ciao.sensors.schemas import SensorCreate, SensorId, SensorRead
 
 router = APIRouter(prefix="/sensors", tags=["sensors"])
 
@@ -23,5 +23,5 @@ def list_sensors(session: SessionDep) -> list[SensorRead]:
 
 
 @router.get("/{sensor_id}", status_code=200, response_model=SensorRead)
-def get_sensor(sensor_id: int, session: SessionDep) -> SensorRead:
+def get_sensor(sensor_id: SensorId, session: SessionDep) -> SensorRead:
     return service.get_sensor(session, sensor_id)

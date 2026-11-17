@@ -38,7 +38,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/sensors/1/readings \
 
 Allowed metrics: `temperature`, `humidity`, `wind_speed`, `pressure`, `rainfall`; any other name is rejected with 422 ([ADR-005](docs/arc42/09-architecture-decisions.md)).
 
-Query statistics (min, max, sum or avg per metric): average temperature and humidity of sensor 1 over a window. Omit `sensor_ids` for all sensors; omit `from`/`to` for the last 24 h; a window must be 1 day to 31 days (`from` and `to` together, or `to` alone):
+Query statistics (min, max, sum or avg per metric): average temperature and humidity of sensor 1 over a window. Omit `sensor_ids` for all sensors (at most 1000 IDs per query); omit `from`/`to` for the last 24 h; a window must be 1 day to 31 days (`from` and `to` together, or `to` alone):
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/readings/statistics \
@@ -53,7 +53,8 @@ Results are per sensor and metric; `value` is `null` when there are no readings 
 List or fetch sensors with `GET /api/v1/sensors` and `GET /api/v1/sensors/{id}` (404 if unknown; the list is not paginated).
 
 Reporting for an unknown sensor returns 404; sensors are never created implicitly.
-Errors share one shape: `{"error": {"code": "...", "message": "...", "details": [...]}}`.
+Errors share one shape: `{"error": {"code": "...", "message": "...", "details": [...]}}`, including unexpected failures (500, no internals exposed); routing errors (unknown path or method) keep FastAPI's default `{"detail": ...}`.
+Sensor IDs outside 1 to 2^63-1 are rejected with 422.
 `GET /health` returns `{"status": "ok"}`.
 
 ## Test

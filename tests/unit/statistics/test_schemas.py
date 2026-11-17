@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from hola_hello_ciao.statistics.schemas import StatisticsQuery
+from hola_hello_ciao.statistics.schemas import MAX_SENSOR_IDS, StatisticsQuery
 
 METRICS = [{"name": "temperature", "stat": "avg"}]
 T0 = datetime(2026, 11, 1, tzinfo=UTC)
@@ -60,6 +60,9 @@ def test_naive_datetimes_are_treated_as_utc() -> None:
         {"metrics": [{"name": "temperature", "stat": "median"}]},  # unknown stat
         {"metrics": METRICS + METRICS},  # duplicate pair
         {"metrics": METRICS, "sensor_ids": []},
+        {"metrics": METRICS, "sensor_ids": [0]},  # ids start at 1
+        {"metrics": METRICS, "sensor_ids": [2**63]},  # beyond SQLite INTEGER
+        {"metrics": METRICS, "sensor_ids": list(range(1, MAX_SENSOR_IDS + 2))},  # too many
     ],
 )
 def test_invalid_queries_are_rejected(payload: dict[str, object]) -> None:
@@ -76,3 +79,10 @@ def test_same_metric_with_different_stats_is_allowed() -> None:
 def test_duplicate_sensor_ids_are_rejected() -> None:
     with pytest.raises(ValidationError, match="duplicate sensor id"):
         make(sensor_ids=[2, 1, 2])
+
+
+def test_up_to_max_sensor_ids_are_allowed() -> None:
+    q = make(sensor_ids=list(range(1, MAX_SENSOR_IDS + 1)))
+
+    assert q.sensor_ids is not None
+    assert len(q.sensor_ids) == MAX_SENSOR_IDS

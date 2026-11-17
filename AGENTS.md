@@ -28,7 +28,7 @@ Architecture and decisions: see [docs/arc42/](docs/arc42/README.md).
 | Database | SQLite (single file, WAL mode) |
 | Data access | SQLAlchemy 2.x, synchronous (ADR-002) |
 | Validation / config | Pydantic v2, `pydantic-settings` |
-| Migrations | Alembic (`migrations/`; keep models and migrations in sync) |
+| Migrations | Alembic (`migrations/`; keep models and migrations in sync, enforced by `tests/unit/core/test_migrations.py`) |
 | Packaging / env | `uv` (`pyproject.toml`, lockfile committed) |
 | Tests | `pytest`, `httpx` test client |
 | Lint / format / types | `ruff` (lint + format), `mypy` or `pyright` |
@@ -69,7 +69,7 @@ Only create directories when there is something to put in them. Full layout: [ar
 - **Sync endpoints:** use `def`, not `async def`, with the sync SQLite driver. Never run blocking calls inside `async def`.
 - **App setup:** app factory in `main.py`, `lifespan` for startup/shutdown (not `on_event`), one `APIRouter` per feature, version prefix `/api/v1`, a `/health` endpoint.
 - **Schemas:** separate Pydantic models for input and output; set `response_model` and explicit status codes.
-- **Errors:** raise domain exceptions mapped by exception handlers in `core/errors.py`, with one consistent error shape. Repositories wrap DB calls in `storage_errors(session, "<specific message>")` (rollback + `StorageError`); the global `SQLAlchemyError` handler is only a fallback with a generic message.
+- **Errors:** raise domain exceptions mapped by exception handlers in `core/errors.py`, with one consistent error shape. Repositories wrap DB calls in `storage_errors(session, "<specific message>")` (rollback + `StorageError`); the global `SQLAlchemyError` handler is only a fallback with a generic message; a catch-all `Exception` handler returns a generic 500 in the same shape.
 - **Run with a single worker** (SQLite single writer).
 
 ## Conventions

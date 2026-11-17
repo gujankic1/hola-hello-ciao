@@ -4,10 +4,14 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from hola_hello_ciao.readings.metrics import Metric
+from hola_hello_ciao.sensors.schemas import SensorId
 
 MIN_RANGE = timedelta(days=1)
 MAX_RANGE = timedelta(days=31)  # "one month" (ADR-004)
 DEFAULT_RANGE = timedelta(hours=24)
+# Each id becomes a bound SQL parameter; stay far below SQLite's limit (32766). Omit
+# sensor_ids to query all sensors.
+MAX_SENSOR_IDS = 1000
 
 
 class Stat(StrEnum):
@@ -27,7 +31,7 @@ class StatisticsQuery(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    sensor_ids: list[int] | None = Field(default=None, min_length=1)
+    sensor_ids: list[SensorId] | None = Field(default=None, min_length=1, max_length=MAX_SENSOR_IDS)
     metrics: list[MetricStat] = Field(min_length=1)
     from_: datetime | None = Field(default=None, alias="from")
     to: datetime | None = None

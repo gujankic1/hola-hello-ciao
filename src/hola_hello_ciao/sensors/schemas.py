@@ -1,4 +1,11 @@
-from pydantic import BaseModel, ConfigDict, field_validator
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# A sensor ID as clients may send it: SQLite rowids start at 1 and are signed 64-bit, so
+# anything outside this range cannot exist and would crash the driver (OverflowError).
+MAX_SENSOR_ID = 2**63 - 1
+SensorId = Annotated[int, Field(ge=1, le=MAX_SENSOR_ID)]
 
 
 class SensorCreate(BaseModel):

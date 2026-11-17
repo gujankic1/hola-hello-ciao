@@ -3,7 +3,12 @@ from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.errors import NotFoundError
 from hola_hello_ciao.sensors.schemas import SensorCreate
-from hola_hello_ciao.sensors.service import create_sensor, ensure_sensors_exist, get_sensor
+from hola_hello_ciao.sensors.service import (
+    create_sensor,
+    ensure_sensors_exist,
+    get_sensor,
+    list_sensors,
+)
 
 
 def test_create_sensor_persists_and_can_be_fetched(session: Session) -> None:
@@ -27,3 +32,11 @@ def test_ensure_sensors_exist_passes_for_known_ids(session: Session, sensor_id: 
 def test_ensure_sensors_exist_names_every_missing_id(session: Session, sensor_id: int) -> None:
     with pytest.raises(NotFoundError, match="Sensors not found: 998, 999"):
         ensure_sensors_exist(session, [998, sensor_id, 999])
+
+
+def test_list_sensors_returns_all_registered_sensors(session: Session) -> None:
+    assert list_sensors(session) == []
+    a = create_sensor(session, SensorCreate(name="a"))
+    b = create_sensor(session, SensorCreate())
+
+    assert list_sensors(session) == [a, b]

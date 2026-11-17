@@ -50,6 +50,8 @@ curl -X POST http://127.0.0.1:8000/api/v1/readings/statistics \
 
 Results are per sensor and metric; `value` is `null` when there are no readings in the window.
 
+List or fetch sensors with `GET /api/v1/sensors` and `GET /api/v1/sensors/{id}` (404 if unknown; the list is not paginated).
+
 Reporting for an unknown sensor returns 404; sensors are never created implicitly.
 Errors share one shape: `{"error": {"code": "...", "message": "...", "details": [...]}}`.
 `GET /health` returns `{"status": "ok"}`.
@@ -69,7 +71,7 @@ uv run ruff check . && uv run mypy
 - Readings are stored one row per metric value ([ADR-003](docs/arc42/09-architecture-decisions.md)); metric names are a closed enum ([ADR-005](docs/arc42/09-architecture-decisions.md)).
 - Layered by feature (router → service → DB), see [ADR-002](docs/arc42/09-architecture-decisions.md).
 - REST design: sensor-scoped ingest, collection-level `POST /readings/statistics` for queries ([ADR-004](docs/arc42/09-architecture-decisions.md)).
-- Not yet done: sensor listing/lookup, authentication, Docker.
+- Not yet done: authentication, pagination, Docker.
 
 ## Documentation
 

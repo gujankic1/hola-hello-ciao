@@ -15,3 +15,13 @@ SessionDep = Annotated[Session, Depends(get_session)]
 @router.post("", status_code=201, response_model=SensorRead)
 def create_sensor(payload: SensorCreate, session: SessionDep) -> SensorRead:
     return service.create_sensor(session, payload)
+
+
+@router.get("", status_code=200, response_model=list[SensorRead])
+def list_sensors(session: SessionDep) -> list[SensorRead]:
+    return service.list_sensors(session)
+
+
+@router.get("/{sensor_id}", status_code=200, response_model=SensorRead)
+def get_sensor(sensor_id: int, session: SessionDep) -> SensorRead:
+    return service.get_sensor(session, sensor_id)

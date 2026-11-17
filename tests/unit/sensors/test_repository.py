@@ -47,3 +47,17 @@ def test_existing_ids_raises_storage_error_when_read_fails(
 
     with pytest.raises(StorageError, match="Could not load the sensors"):
         repository.existing_ids(session, [1])
+
+
+def test_list_all_returns_sensors_ordered_by_id(session: Session) -> None:
+    first = repository.add(session, "a")
+    second = repository.add(session, None)
+
+    assert [s.id for s in repository.list_all(session)] == [first.id, second.id]
+
+
+def test_list_all_raises_storage_error(session: Session, engine: Engine) -> None:
+    Sensor.__table__.drop(engine)
+
+    with pytest.raises(StorageError, match="Could not load the sensors"):
+        repository.list_all(session)

@@ -108,7 +108,7 @@ Resources and endpoints (all under `/api/v1`):
 |---|---|---|
 | `POST /sensors` | Register a sensor | slice 1 |
 | `POST /sensors/{sensor_id}/readings` | Ingest metric values for a sensor; 404 if the sensor does not exist | slice 1 |
-| `GET /sensors`, `GET /sensors/{sensor_id}` | List / fetch sensors | planned |
+| `GET /sensors`, `GET /sensors/{sensor_id}` | List (by id, no paging) / fetch sensors; 404 for an unknown id | slice 2 |
 | `GET /sensors/{sensor_id}/readings` | Raw readings of one sensor (time filter, paging) | optional, later |
 | `POST /readings/statistics` | Aggregate query (body: sensors, metrics + statistic, from/to) | slice 2 |
 | `GET /health` | Liveness | slice 1 |

@@ -50,7 +50,8 @@ We need a code structure that keeps HTTP concerns, business logic and persistenc
 - **Organised by feature**, not by layer: each feature folder holds its own `router.py`, `schemas.py`, `service.py`, `repository.py`.
 - **Dependency injection via FastAPI `Depends`** (no extra DI framework) for DB session, settings and services.
 - **Synchronous endpoints** (`def`, not `async def`) with the synchronous SQLite driver.
-- Introduce a `repository` only when queries need sharing; until then services may use the session directly.
+- Every feature has a `repository`; services call it and never use the `Session` API directly (they only pass the session through).
+- **Error handling:** repositories translate database errors into a `StorageError` with an operation-specific message (`core.db.storage_errors`, which also rolls back). A global `SQLAlchemyError` handler remains as a fallback with a generic message.
 
 ### Reasons
 
@@ -64,3 +65,72 @@ We need a code structure that keeps HTTP concerns, business logic and persistenc
 - Slight boilerplate per feature (several small files).
 - Sync-only data access; if async is ever needed, revisit with a new ADR (e.g. async driver).
 - Discipline needed to keep routers thin and keep FastAPI types out of services.
+
+## ADR-003: Long-format `readings` table (one row per metric value)
+
+- **Status:** accepted
+- **Date:** 2026-11-17
+
+### Context
+
+Sensors report different metrics (temperature, humidity, wind speed, ...) and new ones may appear. Queries aggregate chosen metrics per sensor over a time range.
+
+### Decision
+
+Store one row per metric value: `readings(id, sensor_id, metric, value, recorded_at)`, where `sensor_id` references `sensors(id)` (see ADR-004), indexed on `(sensor_id, metric, recorded_at)`. One ingest call with several metrics writes several rows in one transaction. Timestamps are stored as naive UTC.
+
+### Reasons
+
+- New metrics need no schema change or migration.
+- Aggregation is one generic query (`WHERE` sensor/metric/time, `GROUP BY` metric with `MIN/MAX/SUM/AVG`).
+- The index serves the expected query shape.
+
+### Consequences
+
+- More rows than a wide table (one per metric per reading); acceptable at PoC scale.
+- No per-metric typing, units or range checks yet; add a metric registry if needed.
+- Metric names are free text (trimmed); typos create new metrics.
+
+## ADR-004: REST resource design (sensor-scoped ingest, collection-level statistics)
+
+- **Status:** accepted
+- **Date:** 2026-11-17
+
+### Context
+
+The brief needs (1) ingest of new metric values per sensor and (2) aggregate queries across one, several or all sensors, several metrics, a statistic per metric (min/max/sum/avg) and a date range (1 day to 1 month, default last 24 h). We want a resource-oriented REST API that can grow gradually.
+
+### Decision
+
+Resources and endpoints (all under `/api/v1`):
+
+| Endpoint | Purpose | Status |
+|---|---|---|
+| `POST /sensors` | Register a sensor | slice 1 |
+| `POST /sensors/{sensor_id}/readings` | Ingest metric values for a sensor; 404 if the sensor does not exist | slice 1 |
+| `GET /sensors`, `GET /sensors/{sensor_id}` | List / fetch sensors | planned |
+| `GET /sensors/{sensor_id}/readings` | Raw readings of one sensor (time filter, paging) | optional, later |
+| `POST /readings/statistics` | Aggregate query (body: sensors, metrics + statistic, from/to) | next slice |
+| `GET /health` | Liveness | slice 1 |
+
+Rules:
+
+- **No implicit sensor creation.** Sensors must be registered first; ingest for an unknown sensor returns 404 (`not_found`).
+- **The sensor ID is in the path** for ingest, not in the body, so path and body can never disagree and ID validation happens before the body is read.
+- **Statistics live at collection level** (`/readings/statistics`), because a query spans many sensors; a per-sensor path would only cover one case and force a second endpoint.
+- **Statistics use POST with a body.** Sensors, per-metric statistics and a range are structured input; a typed body validates cleanly. Planned shape: `{"sensor_ids": [1, 2] (omitted = all), "metrics": [{"name": "temperature", "stat": "avg"}], "from": ..., "to": ...}`; default window last 24 h; range must be between 1 day and 1 month.
+- **No `GET /sensors/{id}/readings/{reading_id}`.** With ADR-003 one ingest call becomes several rows, so there is no single "reading" entity worth an ID, and the brief has no need to fetch, update or delete one value. If ever needed, storage would split into `readings` (event) and `reading_values` (metric/value).
+
+### Alternatives considered for the statistics query
+
+| | Shape | Why not chosen |
+|---|---|---|
+| B | `GET /statistics?sensor_id=1&metric=temperature&stat=avg&...` | Pure REST and cacheable, but repeated list params and a different statistic per metric get awkward |
+| C | `GET /sensors/{id}/statistics?...` plus a global variant | Two endpoints for one capability; multi-sensor case still needs another |
+| D | `POST /statistics/queries` (query as a resource) | Over-engineered for a PoC; "create" semantics for an immediate result confuse readers |
+
+### Consequences
+
+- POST for a read-only query is not cacheable and not self-evidently safe; accepted trade-off (common pattern, e.g. Elasticsearch `_search`).
+- A sensors table and `POST /sensors` are needed already in slice 1 so that ingest is usable.
+- One ingest call cannot report for several sensors (no batching across sensors).

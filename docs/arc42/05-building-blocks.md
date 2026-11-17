@@ -1,6 +1,6 @@
 # 5. Building blocks
 
-See [ADR-002](09-architecture-decisions.md). Layout is planned; create folders only when needed.
+See [ADR-002](09-architecture-decisions.md). Features: `sensors` (registry) and `readings` (ingest; depends on `sensors.service.get_sensor` for the 404 check). Every feature has a `repository`; services never call the `Session` API directly. Create folders only when needed.
 
 ## Level 1: layers
 
@@ -23,15 +23,18 @@ src/hola_hello_ciao/
   main.py        # app factory, lifespan, router registration
   core/
     config.py    # Settings (pydantic-settings), cached get_settings()
-    db.py        # engine, session factory, PRAGMAs (WAL, foreign keys)
+    db.py        # engine, PRAGMAs (WAL, foreign keys), storage_errors helper
     deps.py      # shared dependencies (get_session, get_settings)
     errors.py    # domain exceptions + exception handlers
   <feature>/     # one folder per feature
     router.py    # APIRouter, endpoints
     schemas.py   # Pydantic request/response models
     service.py   # business logic
-    repository.py  # data access (optional at first)
-tests/           # mirrors the package; uses dependency overrides
+    repository.py  # data access; translates DB errors to StorageError
+tests/
+  conftest.py    # shared fixtures, dependency overrides with a temp SQLite file
+  unit/<feature>/         # mirrors the package; services, repositories and schemas without HTTP
+  integration/            # one file per route (test_post_sensors_readings.py), via TestClient
 ```
 
 ## Dependency injection

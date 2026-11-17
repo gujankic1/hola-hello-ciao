@@ -5,7 +5,7 @@ Keep this file short and accurate. If reality and this file disagree, fix the fi
 
 ## Project
 
-`hola-hello-ciao` — a small web API. Purpose and scope: see [README.md](README.md).
+`hola-hello-ciao` — Weather Sensor Metrics API: receives sensor readings and (later) answers aggregate queries (min/max/sum/avg). Requirements: [arc42 chapter 1](docs/arc42/01-introduction-and-goals.md). Built as a take-home PoC: keep scope small, be able to explain every dependency and decision.
 Architecture and decisions: see [docs/arc42/](docs/arc42/README.md).
 
 ## Working mode
@@ -26,9 +26,9 @@ Architecture and decisions: see [docs/arc42/](docs/arc42/README.md).
 | Language | Python 3.12+ |
 | Web framework | FastAPI (served by Uvicorn) |
 | Database | SQLite (single file, WAL mode) |
-| Data access | Synchronous (see ADR-002). SQLAlchemy 2.x or plain `sqlite3` — decide when the first table is needed |
+| Data access | SQLAlchemy 2.x, synchronous (ADR-002) |
 | Validation / config | Pydantic v2, `pydantic-settings` |
-| Migrations | Alembic (once a schema exists) |
+| Migrations | Alembic (`migrations/`; keep models and migrations in sync) |
 | Packaging / env | `uv` (`pyproject.toml`, lockfile committed) |
 | Tests | `pytest`, `httpx` test client |
 | Lint / format / types | `ruff` (lint + format), `mypy` or `pyright` |
@@ -54,6 +54,8 @@ Do not add dependencies outside this list without an ADR or explicit approval.
 ├── docs/arc42/          # architecture documentation
 ├── src/hola_hello_ciao/ # application package (main.py, core/, one folder per feature)
 ├── tests/
+│   ├── unit/<feature>/         # service/schema tests, no HTTP
+│   └── integration/            # one file per route, through the HTTP API
 └── pyproject.toml
 ```
 
@@ -62,16 +64,20 @@ Only create directories when there is something to put in them. Full layout: [ar
 ## Architecture rules (ADR-002)
 
 - **Layers, one-way:** `router` → `service` → `repository`. Routers handle HTTP only; services hold business logic and never import FastAPI; only repositories touch SQL/ORM.
-- **Feature folders:** each feature has `router.py`, `schemas.py`, `service.py` and, when queries need sharing, `repository.py`. Shared infra lives in `core/` (`config`, `db`, `deps`, `errors`).
+- **Feature folders:** each feature has `router.py`, `schemas.py`, `service.py` and `repository.py`; services call repositories, never the `Session` API directly. Shared infra lives in `core/` (`config`, `db`, `deps`, `errors`).
 - **Dependency injection with `Depends`** (`Annotated[X, Depends(get_x)]`) for settings, DB session and services. No other DI framework. Tests override via `app.dependency_overrides` with a temporary SQLite file.
 - **Sync endpoints:** use `def`, not `async def`, with the sync SQLite driver. Never run blocking calls inside `async def`.
 - **App setup:** app factory in `main.py`, `lifespan` for startup/shutdown (not `on_event`), one `APIRouter` per feature, version prefix `/api/v1`, a `/health` endpoint.
 - **Schemas:** separate Pydantic models for input and output; set `response_model` and explicit status codes.
-- **Errors:** raise domain exceptions mapped by exception handlers in `core/errors.py`, with one consistent error shape.
+- **Errors:** raise domain exceptions mapped by exception handlers in `core/errors.py`, with one consistent error shape. Repositories wrap DB calls in `storage_errors(session, "<specific message>")` (rollback + `StorageError`); the global `SQLAlchemyError` handler is only a fallback with a generic message.
 - **Run with a single worker** (SQLite single writer).
 
 ## Conventions
 
+- **Tests are sorted by level, then feature:**
+  - `tests/unit/<feature>/test_<module>.py` mirrors `src/hola_hello_ciao/<feature>/` and tests services/repositories/schemas directly, without HTTP.
+  - `tests/integration/test_<method>_<route>.py` has one file per route, named after it (`/sensors/{sensor_id}/readings` -> `test_post_sensors_readings.py`), and calls the app through `TestClient`.
+  - Shared fixtures (temp SQLite file, `session`, `client`, `sensor_id`) live in `tests/conftest.py`. Every test directory has an `__init__.py` (same file names recur across features).
 - Type-hint all public functions. Routers stay thin; logic lives in services that are testable without HTTP.
 - Request/response bodies are Pydantic models; never return raw DB rows.
 - Use parameterised queries / ORM only. No string-built SQL.
@@ -81,13 +87,15 @@ Only create directories when there is something to put in them. Full layout: [ar
 
 ## Commands
 
-> To be filled in once the project is scaffolded. Expected:
-
 ```bash
-uv sync                          # install
-uv run fastapi dev               # run locally
-uv run pytest                    # test
+uv sync                                               # install
+uv run alembic upgrade head                           # create/upgrade the SQLite schema
+uv run fastapi dev                                    # run locally (http://127.0.0.1:8000/docs)
+uv run pytest                                         # all tests
+uv run pytest tests/unit                              # unit tests only
+uv run pytest tests/integration                       # integration tests only
 uv run ruff check . && uv run ruff format --check .   # lint
+uv run mypy                                           # type check
 ```
 
 ## Definition of done

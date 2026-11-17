@@ -1,8 +1,8 @@
 # hola-hello-ciao
 
-Weather Sensor Metrics API: receives readings from sensors (temperature, humidity, wind speed, ...) and will answer aggregate queries (min/max/sum/avg) over them. Built with FastAPI and SQLite.
+Weather Sensor Metrics API: receives readings from sensors (temperature, humidity, wind speed, ...) and answers aggregate queries (min/max/sum/avg) over them. Built with FastAPI and SQLite.
 
-> **Status:** slice 2. Registering sensors, ingesting readings and the statistics query work end to end.
+> **Status:** complete for the brief. Registering sensors, ingesting readings and the statistics query work end to end.
 
 ## Stack
 
@@ -71,7 +71,7 @@ uv run ruff check . && uv run mypy
 - Readings are stored one row per metric value ([ADR-003](docs/arc42/09-architecture-decisions.md)); metric names are a closed enum ([ADR-005](docs/arc42/09-architecture-decisions.md)).
 - Layered by feature (router → service → DB), see [ADR-002](docs/arc42/09-architecture-decisions.md).
 - REST design: sensor-scoped ingest, collection-level `POST /readings/statistics` for queries ([ADR-004](docs/arc42/09-architecture-decisions.md)).
-- Not yet done: authentication, pagination, Docker.
+- Not yet done: authentication, pagination.
 
 ## Documentation
 

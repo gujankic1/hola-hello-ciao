@@ -18,8 +18,8 @@ END = datetime(2026, 11, 2)
 def test_aggregates_per_sensor_and_metric(
     session: Session, add_reading: AddReading, sensor_id: int
 ) -> None:
-    for value in (10, 20, 60):
-        add_reading(sensor_id, Metric.TEMPERATURE, value, datetime(2026, 11, 1, 12))
+    for hour, value in [(10, 10), (11, 20), (12, 60)]:
+        add_reading(sensor_id, Metric.TEMPERATURE, value, datetime(2026, 11, 1, hour))
     add_reading(sensor_id, Metric.HUMIDITY, 5, datetime(2026, 11, 1, 12))
 
     rows = repository.aggregate(session, [sensor_id], [Metric.TEMPERATURE], START, END)

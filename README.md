@@ -24,7 +24,7 @@ The database path can be changed with `DATABASE_PATH` (see `.env.example`).
 
 Endpoint design and planned endpoints: [ADR-004](docs/arc42/09-architecture-decisions.md).
 
-Register a sensor, then report readings for it (`recorded_at` is optional and defaults to now, UTC):
+Register a sensor, then report readings for it. `recorded_at` is required; values without an offset are taken as UTC:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/sensors \
@@ -33,8 +33,10 @@ curl -X POST http://127.0.0.1:8000/api/v1/sensors \
 
 curl -X POST http://127.0.0.1:8000/api/v1/sensors/1/readings \
   -H 'Content-Type: application/json' \
-  -d '{"metrics": {"temperature": 21.5, "humidity": 40}}'
+  -d '{"metrics": {"temperature": 21.5, "humidity": 40}, "recorded_at": "2026-11-17T10:00:00Z"}'
 ```
+
+Ingest is idempotent per sensor, metric and `recorded_at`: retrying the same call stores nothing new and returns 201 again, while a different value for an existing reading returns 409 and stores nothing from that call ([ADR-003](docs/arc42/09-architecture-decisions.md)).
 
 Allowed metrics: `temperature`, `humidity`, `wind_speed`, `pressure`, `rainfall`; any other name is rejected with 422 ([ADR-005](docs/arc42/09-architecture-decisions.md)).
 
@@ -77,11 +79,10 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy
 
 Full list with triggers and mitigations: [arc42 chapter 11](docs/arc42/11-risks-and-technical-debt.md). In the order I would tackle them:
 
-1. **Idempotent ingest.** A retried request is stored twice and skews `sum`/`avg`; a unique key on `(sensor_id, metric, recorded_at)` fixes it.
-2. **Authentication.** There is none yet; API keys per sensor and per client would be the first step.
-3. **Query cost at scale.** At about 13M rows, queries over all sensors take 1–2 s, while queries for named sensors stay in milliseconds. Fixes: an extra index, then pre-aggregated rollups, then PostgreSQL/TimescaleDB if one host is no longer enough.
-4. **Plausibility checks.** Add per-metric value ranges and reject future timestamps.
-5. **Operations.** Add structured logging, a database readiness check, CI, scheduled backups and a retention policy.
+1. **Authentication.** There is none yet; API keys per sensor and per client would be the first step.
+2. **Query cost at scale.** At about 13M rows, queries over all sensors take 1–2 s, while queries for named sensors stay in milliseconds. Fixes: an extra index, then pre-aggregated rollups, then PostgreSQL/TimescaleDB if one host is no longer enough.
+3. **Plausibility checks.** Add per-metric value ranges and reject future timestamps.
+4. **Operations.** Add structured logging, a database readiness check, CI, scheduled backups and a retention policy.
 
 ## Documentation
 

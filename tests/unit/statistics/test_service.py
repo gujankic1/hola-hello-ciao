@@ -18,8 +18,8 @@ def make(**kwargs: object) -> StatisticsQuery:
 
 
 def test_each_stat_is_computed(session: Session, add_reading: AddReading, sensor_id: int) -> None:
-    for value in (10, 20, 60):
-        add_reading(sensor_id, Metric.TEMPERATURE, value, T0 + timedelta(hours=1))
+    for hour, value in [(1, 10), (2, 20), (3, 60)]:
+        add_reading(sensor_id, Metric.TEMPERATURE, value, T0 + timedelta(hours=hour))
     metrics = [{"name": "temperature", "stat": s.value} for s in Stat]
 
     response = query(

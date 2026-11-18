@@ -79,17 +79,22 @@ Sensors report different metrics (temperature, humidity, wind speed, ...) and ne
 
 ### Decision
 
-Store one row per metric value: `readings(id, sensor_id, metric, value, recorded_at)`, where `sensor_id` references `sensors(id)` (see ADR-004), indexed on `(sensor_id, metric, recorded_at)`. One ingest call with several metrics writes several rows in one transaction. Timestamps are stored as naive UTC.
+Store one row per metric value: `readings(id, sensor_id, metric, value, recorded_at)`, where `sensor_id` references `sensors(id)` (see ADR-004), with `(sensor_id, metric, recorded_at)` unique. One ingest call with several metrics writes several rows in one transaction. Timestamps are stored as naive UTC.
+
+`recorded_at` is required and identifies a reading, which makes ingest idempotent: values already stored with the same value are skipped (a retry returns 201 again), and a different value for an existing key returns 409 and stores nothing from that call.
 
 ### Reasons
 
 - New metrics need no schema change or migration.
 - Aggregation is one generic query (`WHERE` sensor/metric/time, `GROUP BY` metric with `MIN/MAX/SUM/AVG`).
-- The index serves the expected query shape.
+- The unique index serves the expected query shape.
+- Sensors retry on flaky networks; without a natural key, a retry would be stored twice and skew `sum`, `avg` and `count`. The server's receive time differs between retries, so the sensor's own timestamp is the key.
+- 409 instead of overwriting: a changed value for the same instant is more likely a bug than a correction, and should not silently replace good data.
 
 ### Consequences
 
 - More rows than a wide table (one per metric per reading); acceptable at PoC scale.
+- Sensors must send `recorded_at`; there is no server-time default. Two readings of one metric at the same microsecond cannot both be stored.
 - No per-metric typing, units or range checks yet; add a metric registry if needed.
 - Metric names were free text originally; superseded by ADR-005 (closed enum).
 

@@ -6,7 +6,7 @@ Rules that apply across all features. Code links point to where each rule is enf
 
 - **UTC everywhere.** Incoming datetimes with an offset are converted to UTC; naive datetimes are taken as UTC (`readings/schemas.py`, `statistics/schemas.py`).
 - **Stored as naive UTC.** SQLite has no time-zone type. SQLAlchemy writes a fixed-width `YYYY-MM-DD HH:MM:SS.ffffff` string, so text comparison is chronological and the `recorded_at` index serves range filters.
-- **"Now" is the server clock.** It is the default for `recorded_at` on ingest and for the end of the statistics window.
+- **"Now" is the server clock.** It is the default end of the statistics window. Ingest has no default: sensors send `recorded_at`, which identifies a reading (ADR-003).
 - **Windows are half-open, `[from, to)`.** Adjacent windows never count a reading twice. The response echoes the resolved `from`/`to`, so clients see which window a default produced.
 
 ## Validation
@@ -17,6 +17,7 @@ All input is validated at the HTTP boundary by Pydantic schemas; services can as
 |---|---|---|
 | Metric names, statistics | Closed enums (`Metric`, `Stat`; ADR-005) | 422 |
 | Metric values | Finite floats (no `NaN`/`Infinity`) | 422 |
+| `recorded_at` | Required; ISO 8601 or Unix time, no offset = UTC | 422 |
 | Sensor IDs (path and body) | `SensorId`: integer from 1 to 2^63-1, the SQLite rowid range | 422 |
 | `sensor_ids` list | 1 to 1000 items, no duplicates | 422 |
 | Statistics window | 1 to 31 days inclusive; `from` needs `to` (ADR-004) | 422 |
@@ -32,6 +33,7 @@ One shape for every error the API produces: `{"error": {"code", "message", "deta
 |---|---|---|
 | `validation_error` | 422 | Pydantic, via the `RequestValidationError` handler; `details` lists each field |
 | `not_found` | 404 | Services (`NotFoundError`) |
+| `conflict` | 409 | Ingest service (`ConflictError`): a different value for an existing reading |
 | `storage_error` | 500 | Repositories via `storage_errors(...)`, with an operation-specific message; a generic `SQLAlchemyError` handler is the fallback |
 | `internal_error` | 500 | Catch-all `Exception` handler; generic message, nothing internal leaked |
 

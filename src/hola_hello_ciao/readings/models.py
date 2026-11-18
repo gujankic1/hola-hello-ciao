@@ -11,7 +11,8 @@ class Reading(Base):
 
     __tablename__ = "readings"
     __table_args__ = (
-        Index("ix_readings_sensor_metric_time", "sensor_id", "metric", "recorded_at"),
+        # Identity of a reading; also serves the statistics query (ADR-003).
+        Index("ux_readings_sensor_metric_time", "sensor_id", "metric", "recorded_at", unique=True),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

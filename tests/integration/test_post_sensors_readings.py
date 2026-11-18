@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from hola_hello_ciao.readings.metrics import Metric
 from hola_hello_ciao.readings.models import Reading
+
+TS = "2026-11-17T10:00:00Z"
 
 
 def url(sensor_id: object) -> str:
@@ -45,24 +47,13 @@ def test_post_reading_stores_one_row_per_metric(
 
 @pytest.mark.parametrize("metric", [m.value for m in Metric])
 def test_every_known_metric_is_accepted(client: TestClient, sensor_id: int, metric: str) -> None:
-    response = client.post(url(sensor_id), json={"metrics": {metric: 1.5}})
+    response = client.post(url(sensor_id), json={"metrics": {metric: 1.5}, "recorded_at": TS})
 
     assert response.status_code == 201
-
-
-def test_post_reading_defaults_recorded_at_to_now(
-    client: TestClient, engine: Engine, sensor_id: int
-) -> None:
-    before = datetime.now(UTC).replace(tzinfo=None)  # stored as naive UTC
-    response = client.post(url(sensor_id), json={"metrics": {"wind_speed": 3.2}})
-
-    assert response.status_code == 201
-    (row,) = all_rows(engine)
-    assert abs(row.recorded_at - before) < timedelta(seconds=10)
 
 
 def test_unknown_sensor_returns_404_and_stores_nothing(client: TestClient, engine: Engine) -> None:
-    response = client.post(url(999), json={"metrics": {"temperature": 1}})
+    response = client.post(url(999), json={"metrics": {"temperature": 1}, "recorded_at": TS})
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "not_found"
@@ -71,7 +62,7 @@ def test_unknown_sensor_returns_404_and_stores_nothing(client: TestClient, engin
 
 @pytest.mark.parametrize("sensor_id", ["abc", 0, 2**63])  # 2**63 overflows SQLite INTEGER
 def test_invalid_sensor_id_is_rejected(client: TestClient, sensor_id: object) -> None:
-    response = client.post(url(sensor_id), json={"metrics": {"temperature": 1}})
+    response = client.post(url(sensor_id), json={"metrics": {"temperature": 1}, "recorded_at": TS})
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"
@@ -80,12 +71,13 @@ def test_invalid_sensor_id_is_rejected(client: TestClient, sensor_id: object) ->
 @pytest.mark.parametrize(
     "payload",
     [
-        {},  # missing metrics
-        {"metrics": {}},  # empty metrics
-        {"metrics": {"temperature": "warm"}},  # non-numeric value
-        {"metrics": {"  ": 1}},  # blank metric name
-        {"metrics": {"temprature": 1}},  # unknown metric (typo)
-        {"metrics": {"temperature": 1, "bogus": 2}},  # one bad key rejects the whole call
+        {"recorded_at": TS},  # missing metrics
+        {"metrics": {}, "recorded_at": TS},  # empty metrics
+        {"metrics": {"temperature": "warm"}, "recorded_at": TS},  # non-numeric value
+        {"metrics": {"  ": 1}, "recorded_at": TS},  # blank metric name
+        {"metrics": {"temprature": 1}, "recorded_at": TS},  # unknown metric (typo)
+        {"metrics": {"temperature": 1, "bogus": 2}, "recorded_at": TS},  # one bad key
+        {"metrics": {"temperature": 1}},  # missing recorded_at
         {"metrics": {"temperature": 1}, "recorded_at": "yesterday"},
     ],
 )
@@ -104,12 +96,39 @@ def test_invalid_payload_is_rejected_and_nothing_stored(
 def test_storage_failure_returns_error_shape(
     client: TestClient, engine: Engine, sensor_id: int
 ) -> None:
-    Reading.__table__.drop(engine)  # sensor lookup still works; the ingest write fails
+    Reading.__table__.drop(engine)  # sensor lookup still works; reading access fails
 
-    response = client.post(url(sensor_id), json={"metrics": {"temperature": 1}})
+    response = client.post(url(sensor_id), json={"metrics": {"temperature": 1}, "recorded_at": TS})
 
     assert response.status_code == 500
     assert response.json()["error"] == {
         "code": "storage_error",
-        "message": "Could not store the reading",
+        "message": "Could not load existing readings",
     }
+
+
+def test_exact_retry_returns_201_and_stores_no_duplicate(
+    client: TestClient, engine: Engine, sensor_id: int
+) -> None:
+    payload = {"metrics": {"temperature": 21.5}, "recorded_at": TS}
+
+    first = client.post(url(sensor_id), json=payload)
+    retry = client.post(url(sensor_id), json=payload)
+
+    assert (first.status_code, retry.status_code) == (201, 201)
+    assert retry.json() == first.json()
+    assert len(all_rows(engine)) == 1
+
+
+def test_different_value_at_same_time_returns_409(
+    client: TestClient, engine: Engine, sensor_id: int
+) -> None:
+    client.post(url(sensor_id), json={"metrics": {"temperature": 21.5}, "recorded_at": TS})
+
+    response = client.post(
+        url(sensor_id), json={"metrics": {"temperature": 22.0}, "recorded_at": TS}
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "conflict"
+    assert [r.value for r in all_rows(engine)] == [21.5]

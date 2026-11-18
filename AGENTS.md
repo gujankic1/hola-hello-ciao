@@ -65,7 +65,7 @@ Only create directories when there is something to put in them. Full layout: [ar
 
 - **Layers, one-way:** `router` → `service` → `repository`. Routers handle HTTP only; services hold business logic and never import FastAPI; only repositories touch SQL/ORM.
 - **Feature folders:** each feature has `router.py`, `schemas.py`, `service.py` and `repository.py`; services call repositories, never the `Session` API directly. Shared infra lives in `core/` (`config`, `db`, `deps`, `errors`).
-- **Dependency injection with `Depends`** (`Annotated[X, Depends(get_x)]`) for settings, DB session and services. No other DI framework. Tests override via `app.dependency_overrides` with a temporary SQLite file.
+- **Dependency injection with `Depends`** (`Annotated[X, Depends(get_x)]`) for the DB session (and settings when an endpoint needs them); services are plain functions taking the session. No other DI framework. Tests override via `app.dependency_overrides` with a temporary SQLite file.
 - **Sync endpoints:** use `def`, not `async def`, with the sync SQLite driver. Never run blocking calls inside `async def`.
 - **App setup:** app factory in `main.py`, `lifespan` for startup/shutdown (not `on_event`), one `APIRouter` per feature, version prefix `/api/v1`, a `/health` endpoint.
 - **Schemas:** separate Pydantic models for input and output; set `response_model` and explicit status codes.
@@ -94,7 +94,7 @@ uv run fastapi dev                                    # run locally (http://127.
 uv run pytest                                         # all tests
 uv run pytest tests/unit                              # unit tests only
 uv run pytest tests/integration                       # integration tests only
-uv run ruff check . && uv run ruff format --check .   # lint
+uv run ruff check . && uv run ruff format --check .   # lint + format check
 uv run mypy                                           # type check
 ```
 

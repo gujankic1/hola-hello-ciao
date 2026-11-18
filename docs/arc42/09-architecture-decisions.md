@@ -48,7 +48,7 @@ We need a code structure that keeps HTTP concerns, business logic and persistenc
 
 - **Layers, one-way dependencies:** `api` (router + schemas) → `service` (business logic) → `repository` (DB access). Services contain no FastAPI imports.
 - **Organised by feature**, not by layer: each feature folder holds its own `router.py`, `schemas.py`, `service.py`, `repository.py`.
-- **Dependency injection via FastAPI `Depends`** (no extra DI framework) for DB session, settings and services.
+- **Dependency injection via FastAPI `Depends`** (no extra DI framework) for the DB session and settings. Services are plain module functions that take the session; they are not injected.
 - **Synchronous endpoints** (`def`, not `async def`) with the synchronous SQLite driver.
 - Every feature has a `repository`; services call it and never use the `Session` API directly (they only pass the session through).
 - **Error handling:** repositories translate database errors into a `StorageError` with an operation-specific message (`core.db.storage_errors`, which also rolls back). A global `SQLAlchemyError` handler remains as a fallback with a generic message.
@@ -58,6 +58,7 @@ We need a code structure that keeps HTTP concerns, business logic and persistenc
 - Separation keeps logic testable without HTTP and lets persistence change independently.
 - Feature folders keep related code together and scale better than one folder per layer.
 - `Depends` is built in and enables test overrides (`app.dependency_overrides`) with a temporary SQLite file, no mocking library needed.
+- Services have a single dependency (the session), no state and no alternative implementations, and routes are not tested in isolation, so injecting services would add a class and provider per feature for no benefit.
 - Blocking SQLite calls inside `async def` would stall the event loop; sync endpoints run in FastAPI's threadpool and are correct and simple.
 
 ### Consequences
@@ -65,6 +66,7 @@ We need a code structure that keeps HTTP concerns, business logic and persistenc
 - Slight boilerplate per feature (several small files).
 - Sync-only data access; if async is ever needed, revisit with a new ADR (e.g. async driver).
 - Discipline needed to keep routers thin and keep FastAPI types out of services.
+- Revisit service injection only if a service needs two or more collaborators besides the session (e.g. a message broker and a cache); a `Depends` provider then keeps routes to one `service` parameter.
 
 ## ADR-003: Long-format `readings` table (one row per metric value)
 

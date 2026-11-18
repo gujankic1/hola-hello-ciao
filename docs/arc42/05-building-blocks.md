@@ -20,11 +20,11 @@ Dependencies point one way only (api → service → repository).
 
 ```
 src/hola_hello_ciao/
-  main.py        # app factory, lifespan, router registration
+  main.py        # app factory, error handlers, router registration, /health
   core/
     config.py    # Settings (pydantic-settings), cached get_settings()
     db.py        # engine, PRAGMAs (WAL, foreign keys), storage_errors helper
-    deps.py      # shared dependencies (get_session, get_settings)
+    deps.py      # shared dependencies (cached engine, get_session)
     errors.py    # domain exceptions + exception handlers
   <feature>/     # one folder per feature
     router.py    # APIRouter, endpoints
@@ -39,4 +39,4 @@ tests/
 
 ## Dependency injection
 
-FastAPI `Depends` wires the chain `get_settings` / `get_session` → service → endpoint. Tests replace providers via `app.dependency_overrides` with a temporary SQLite file.
+Endpoints receive a request-scoped `Session` via `Depends(get_session)`; `get_session` uses the cached engine built from `get_settings()`. Services are plain module functions that take the session, not injected objects (ADR-002). Tests replace `get_session` via `app.dependency_overrides` with a temporary SQLite file. There is no `lifespan` yet, because nothing needs startup or shutdown work.

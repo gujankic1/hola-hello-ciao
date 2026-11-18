@@ -63,7 +63,7 @@ Sensor IDs outside 1 to 2^63-1 are rejected with 422.
 uv run pytest                    # all
 uv run pytest tests/unit         # unit tests, by feature (no HTTP)
 uv run pytest tests/integration  # one file per route, through the HTTP API
-uv run ruff check . && uv run mypy
+uv run ruff check . && uv run ruff format --check . && uv run mypy
 ```
 
 ## Approach and trade-offs
@@ -72,7 +72,16 @@ uv run ruff check . && uv run mypy
 - Readings are stored one row per metric value ([ADR-003](docs/arc42/09-architecture-decisions.md)); metric names are a closed enum ([ADR-005](docs/arc42/09-architecture-decisions.md)).
 - Layered by feature (router → service → DB), see [ADR-002](docs/arc42/09-architecture-decisions.md).
 - REST design: sensor-scoped ingest, collection-level `POST /readings/statistics` for queries ([ADR-004](docs/arc42/09-architecture-decisions.md)).
-- Not yet done: authentication, pagination.
+
+## Known limitations and next steps
+
+Full list with triggers and mitigations: [arc42 chapter 11](docs/arc42/11-risks-and-technical-debt.md). In the order I would tackle them:
+
+1. **Idempotent ingest.** A retried request is stored twice and skews `sum`/`avg`; a unique key on `(sensor_id, metric, recorded_at)` fixes it.
+2. **Authentication.** There is none yet; API keys per sensor and per client would be the first step.
+3. **Query cost at scale.** At about 13M rows, queries over all sensors take 1–2 s, while queries for named sensors stay in milliseconds. Fixes: an extra index, then pre-aggregated rollups, then PostgreSQL/TimescaleDB if one host is no longer enough.
+4. **Plausibility checks.** Add per-metric value ranges and reject future timestamps.
+5. **Operations.** Add structured logging, a database readiness check, CI, scheduled backups and a retention policy.
 
 ## Documentation
 

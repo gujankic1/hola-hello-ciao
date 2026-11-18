@@ -11,9 +11,11 @@ We use [arc42](https://arc42.org/) in a deliberately minimal form: only chapters
 | 5 | [Building blocks](05-building-blocks.md) | started |
 | 6 | Runtime view | not yet written |
 | 7 | [Deployment](07-deployment.md) | started |
-| 8 | Cross-cutting concepts | not yet written |
-| 9 | [Architecture decisions](09-architecture-decisions.md) | ADR-001 to ADR-004 |
-| 10–12 | Quality, risks, glossary | not yet written |
+| 8 | [Cross-cutting concepts](08-cross-cutting-concepts.md) | started |
+| 9 | [Architecture decisions](09-architecture-decisions.md) | ADR-001 to ADR-005 |
+| 10 | Quality requirements | not yet written (quality goals: chapter 1) |
+| 11 | [Risks and technical debt](11-risks-and-technical-debt.md) | started |
+| 12 | Glossary | not yet written |
 
 ## Rules
 

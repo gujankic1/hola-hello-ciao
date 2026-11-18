@@ -32,10 +32,14 @@ src/hola_hello_ciao/
     schemas.py   # Pydantic request/response models
     service.py   # business logic
     repository.py  # data access; translates DB errors to StorageError
+scripts/         # dev tooling, not packaged (ADR-006)
+  dev.py         # serve / seed commands
+  seed.py        # synthetic datasets, bulk insert via the models
 tests/
   conftest.py    # shared fixtures, dependency overrides with a temp SQLite file
   unit/<feature>/         # mirrors the package; services, repositories and schemas without HTTP
   integration/            # one file per route (test_post_sensors_readings.py), via TestClient
+  scripts/                # dev tooling tests
 ```
 
 ## Dependency injection

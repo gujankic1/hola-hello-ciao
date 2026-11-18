@@ -53,9 +53,11 @@ Do not add dependencies outside this list without an ADR or explicit approval.
 ├── README.md
 ├── docs/arc42/          # architecture documentation
 ├── src/hola_hello_ciao/ # application package (main.py, core/, one folder per feature)
+├── scripts/             # dev tooling (start commands, seed data); not packaged, ADR-006
 ├── tests/
 │   ├── unit/<feature>/         # service/schema tests, no HTTP
-│   └── integration/            # one file per route, through the HTTP API
+│   ├── integration/            # one file per route, through the HTTP API
+│   └── scripts/                # tests for scripts/
 └── pyproject.toml
 ```
 
@@ -91,6 +93,8 @@ Only create directories when there is something to put in them. Full layout: [ar
 uv sync                                               # install
 uv run alembic upgrade head                           # create/upgrade the SQLite schema
 uv run fastapi dev                                    # run locally (http://127.0.0.1:8000/docs)
+uv run scripts/dev.py serve [--seed small|medium|large] [--reset]  # migrate (+ seed) + run
+uv run scripts/dev.py seed small|medium|large [--reset]            # migrate + seed only
 uv run pytest                                         # all tests
 uv run pytest tests/unit                              # unit tests only
 uv run pytest tests/integration                       # integration tests only

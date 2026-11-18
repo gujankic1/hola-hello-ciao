@@ -177,3 +177,34 @@ Metric names are a closed `Metric` enum in `readings/metrics.py`: `temperature`,
 
 - **Configurable allow-list (env var):** no deploy for new metrics, but validated at runtime and invisible in OpenAPI.
 - **Metric registry table:** enables units and ranges but needs a migration and management endpoints; overkill for the PoC.
+
+## ADR-006: Dev tooling (start commands, seed data) in `scripts/`, outside the package
+
+- **Status:** accepted
+- **Date:** 2026-11-18
+
+### Context
+
+Starting the app took three commands and began with an empty database, so trying the statistics query meant hand-writing ingest calls first. We want one-line start commands with optional seed data, without seeding code leaking into the application.
+
+### Decision
+
+Dev tooling lives in a root-level `scripts/` folder: `dev.py` (argparse; `serve` and `seed` subcommands) and `seed.py` (datasets `small`, `medium`, `large`). It runs with `uv run scripts/dev.py ...` in the project environment and is not part of the built wheel. `seed.py` writes through the ORM models with batched bulk inserts, not through services, repositories or the HTTP API. Seeding refuses a database that already has sensors; `--reset` deletes the file first.
+
+### Reasons
+
+- No file under `src/` knows about seeding, and nothing new ships.
+- No new dependency: stdlib `argparse`, Alembic's command API, `uvicorn.run`.
+- Bulk insert loads the large set (2.16M rows) in about 15 s; one ingest call per reading would take minutes.
+
+### Consequences
+
+- Commands are invoked by path rather than a short name.
+- Seed data bypasses ingest validation; it is trusted because it is generated in the same repo. The models are the contract: a schema change can break `seed.py`, which `tests/scripts/` catches.
+
+### Alternatives considered
+
+- **`[project.scripts]` entry point:** short `uv run hhc ...`, but the module would have to live in the application package.
+- **uv workspace package for tooling:** short name and kept apart, but a second package to maintain for a PoC.
+- **poethepoet / make / just:** npm-style tasks, but an extra dependency or tool, and seeding logic still needs a home.
+- **Seed via the HTTP API:** exercises validation, but far too slow for the large set.

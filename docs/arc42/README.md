@@ -12,7 +12,7 @@ We use [arc42](https://arc42.org/) in a deliberately minimal form: only chapters
 | 6 | Runtime view | not yet written |
 | 7 | [Deployment](07-deployment.md) | started |
 | 8 | [Cross-cutting concepts](08-cross-cutting-concepts.md) | started |
-| 9 | [Architecture decisions](09-architecture-decisions.md) | ADR-001 to ADR-005 |
+| 9 | [Architecture decisions](09-architecture-decisions.md) | ADR-001 to ADR-006 |
 | 10 | Quality requirements | not yet written (quality goals: chapter 1) |
 | 11 | [Risks and technical debt](11-risks-and-technical-debt.md) | started |
 | 12 | Glossary | not yet written |

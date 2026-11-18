@@ -31,6 +31,8 @@ entrypoint = "hola_hello_ciao.main:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Dev tooling (ADR-006) is not packaged; make it importable for tests/scripts/.
+pythonpath = ["scripts"]
 
 [tool.ruff]
 line-length = 100
@@ -42,4 +44,4 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["src"]
+files = ["src", "scripts"]

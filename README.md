@@ -20,6 +20,23 @@ uv run fastapi dev            # http://127.0.0.1:8000  (interactive docs at /doc
 
 The database path can be changed with `DATABASE_PATH` (see `.env.example`).
 
+### One-liners with seed data
+
+```bash
+uv run scripts/dev.py serve                       # migrate + dev server with reload
+uv run scripts/dev.py serve --seed small          # migrate, seed an empty DB, serve
+uv run scripts/dev.py serve --seed large --reset  # delete the DB first, then the same
+uv run scripts/dev.py seed medium --reset         # migrate + seed only
+```
+
+`serve` also takes `--host`, `--port` and `--no-reload`. Seeding refuses a database that already has sensors; `--reset` deletes it (and its WAL files) first. The data is synthetic and deterministic, and ends at the current time, so the default last-24h query returns results. The tooling lives in `scripts/`, outside the application package ([ADR-006](docs/arc42/09-architecture-decisions.md)).
+
+| Dataset | Sensors | Interval | Window | Rows | Seed time / size (M3 Max) |
+|---|---|---|---|---|---|
+| `small` | 3 | 1 h | 7 days | 2,520 | < 0.1 s |
+| `medium` | 20 | 30 min | 30 days | 144,000 | ~1 s |
+| `large` | 100 | 30 min | 90 days | 2,160,000 | ~15 s / ~220 MB |
+
 ## API
 
 Endpoint design and planned endpoints: [ADR-004](docs/arc42/09-architecture-decisions.md).
@@ -65,6 +82,7 @@ Sensor IDs outside 1 to 2^63-1 are rejected with 422.
 uv run pytest                    # all
 uv run pytest tests/unit         # unit tests, by feature (no HTTP)
 uv run pytest tests/integration  # one file per route, through the HTTP API
+uv run pytest tests/scripts      # dev tooling (seed data, start commands)
 uv run ruff check . && uv run ruff format --check . && uv run mypy
 ```
 

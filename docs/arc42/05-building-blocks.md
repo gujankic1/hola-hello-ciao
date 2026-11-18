@@ -26,6 +26,7 @@ src/hola_hello_ciao/
     db.py        # engine, PRAGMAs (WAL, foreign keys), storage_errors helper
     deps.py      # shared dependencies (cached engine, get_session)
     errors.py    # domain exceptions + exception handlers
+    types.py     # shared Pydantic types (UtcDatetime)
   <feature>/     # one folder per feature
     router.py    # APIRouter, endpoints
     schemas.py   # Pydantic request/response models

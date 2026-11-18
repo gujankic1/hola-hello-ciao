@@ -68,6 +68,16 @@ We need a code structure that keeps HTTP concerns, business logic and persistenc
 - Discipline needed to keep routers thin and keep FastAPI types out of services.
 - Revisit service injection only if a service needs two or more collaborators besides the session (e.g. a message broker and a cache); a `Depends` provider then keeps routes to one `service` parameter.
 
+### Concurrent ingest and queries
+
+Synchronous does not mean one request at a time:
+
+- **Requests run in parallel.** FastAPI runs each `def` endpoint in a pool of 40 threads, and SQLite releases Python's lock (the GIL) while it works.
+- **Queries never wait for ingest.** In WAL mode, readers see a snapshot while a write is in progress, and the other way round.
+- **Writes queue, but briefly.** SQLite allows one writer at a time. A second write waits (up to 5 s) rather than failing, and an ingest write takes well under a millisecond.
+
+Async would not help with SQLite: there is still one writer, and async SQLite drivers run in a thread anyway. It pays off with PostgreSQL and an async driver. The limits of this setup and their fixes are in chapter 11 (R7).
+
 ## ADR-003: Long-format `readings` table (one row per metric value)
 
 - **Status:** accepted

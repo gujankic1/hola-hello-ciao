@@ -98,9 +98,8 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy
 Full list with triggers and mitigations: [arc42 chapter 11](docs/arc42/11-risks-and-technical-debt.md). In the order I would tackle them:
 
 1. **Authentication.** There is none yet; API keys per sensor and per client would be the first step.
-2. **Query cost at scale.** At about 13M rows, queries over all sensors take 1–2 s, while queries for named sensors stay in milliseconds. Fixes: an extra index, then pre-aggregated rollups, then PostgreSQL/TimescaleDB if one host is no longer enough.
-3. **Plausibility checks.** Add per-metric value ranges and reject future timestamps.
-4. **Operations.** Add structured logging, a database readiness check, CI, scheduled backups and a retention policy.
+2. **Plausibility checks.** Add per-metric value ranges and reject future timestamps.
+3. **Operations.** Add structured logging, a database readiness check, CI, scheduled backups and a retention policy.
 
 ## Documentation
 

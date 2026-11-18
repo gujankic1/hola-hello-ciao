@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from hola_hello_ciao.core.db import storage_errors
 from hola_hello_ciao.readings.metrics import Metric
 from hola_hello_ciao.readings.models import Reading
+from hola_hello_ciao.sensors.models import Sensor
 
 
 class Aggregate(NamedTuple):
@@ -44,7 +45,10 @@ def aggregate(
         )
         .group_by(Reading.sensor_id, Reading.metric)
     )
-    if sensor_ids is not None:
-        query = query.where(Reading.sensor_id.in_(sensor_ids))
+    # Always constrain sensor_id, the index's leading column: SQLite then seeks one index
+    # range per sensor instead of scanning the whole index (chapter 11, R1).
+    query = query.where(
+        Reading.sensor_id.in_(select(Sensor.id) if sensor_ids is None else sensor_ids)
+    )
     with storage_errors(session, "Could not load statistics"):
         return [Aggregate(*row) for row in session.execute(query)]

@@ -101,7 +101,7 @@ Store one row per metric value: `readings(id, sensor_id, metric, value, recorded
 ## ADR-004: REST resource design (sensor-scoped ingest, collection-level statistics)
 
 - **Status:** accepted
-- **Date:** 2026-11-17
+- **Date:** 2026-11-17 (query path renamed from `/readings/statistics` to `/readings/aggregate` on 2026-11-18)
 
 ### Context
 
@@ -117,14 +117,15 @@ Resources and endpoints (all under `/api/v1`):
 | `POST /sensors/{sensor_id}/readings` | Ingest metric values for a sensor; 404 if the sensor does not exist | done |
 | `GET /sensors`, `GET /sensors/{sensor_id}` | List (by id, no paging) / fetch sensors; 404 for an unknown id | done |
 | `GET /sensors/{sensor_id}/readings` | Raw readings of one sensor (time filter, paging) | optional, later |
-| `POST /readings/statistics` | Aggregate query (body: sensors, metrics + statistic, from/to) | done |
+| `POST /readings/aggregate` | Aggregate query (body: sensors, metrics + statistic, from/to) | done |
 | `GET /health` | Liveness | done |
 
 Rules:
 
 - **No implicit sensor creation.** Sensors must be registered first; ingest for an unknown sensor returns 404 (`not_found`).
 - **The sensor ID is in the path** for ingest, not in the body, so path and body can never disagree and ID validation happens before the body is read.
-- **Statistics live at collection level** (`/readings/statistics`), because a query spans many sensors; a per-sensor path would only cover one case and force a second endpoint.
+- **Statistics live at collection level** (`/readings/aggregate`), because a query spans many sensors; a per-sensor path would only cover one case and force a second endpoint.
+- **The query path is an action, not a noun.** `POST` on a noun reads as "create one" (like ingest, `POST .../readings`), so `POST /readings/statistics` suggested submitting statistics. `aggregate` names the operation and implies summary values come back (as in MongoDB `aggregate`, Elasticsearch aggregations), and leaves `query`/`search` free for a later raw-readings endpoint. The code feature stays `statistics/`.
 - **Statistics use POST with a body.** Sensors, per-metric statistics and a range are structured input; a typed body validates cleanly. Shape: `{"sensor_ids": [1, 2] (omitted = all), "metrics": [{"name": "temperature", "stat": "avg"}], "from": ..., "to": ...}`; default window last 24 h; range must be between 1 day and 1 month.
 - **Statistics semantics.** `metrics[].name` and `stat` (`min|max|sum|avg`) are enums. Window: neither `from` nor `to` = last 24 h ending now; only `to` = the 24 h before it; only `from` = 422; both = length from 1 day to 31 days inclusive ("one month" = 31 days). Naive datetimes are UTC; the window is `[from, to)`; the response echoes the resolved `from`/`to`. Results are per sensor and metric (`sensor_id, metric, stat, value, count`), never pooled across sensors. `value` is `null` for an explicitly requested sensor with no readings in the window; with all sensors only sensors that have data appear. Unknown `sensor_ids` return 404 naming every missing ID (checked in one query); empty lists, duplicate sensor IDs and duplicate metric/stat pairs return 422.
 - **No `GET /sensors/{id}/readings/{reading_id}`.** With ADR-003 one ingest call becomes several rows, so there is no single "reading" entity worth an ID, and the brief has no need to fetch, update or delete one value. If ever needed, storage would split into `readings` (event) and `reading_values` (metric/value).
@@ -136,6 +137,10 @@ Rules:
 | B | `GET /statistics?sensor_id=1&metric=temperature&stat=avg&...` | Pure REST and cacheable, but repeated list params and a different statistic per metric get awkward |
 | C | `GET /sensors/{id}/statistics?...` plus a global variant | Two endpoints for one capability; multi-sensor case still needs another |
 | D | `POST /statistics/queries` (query as a resource) | Over-engineered for a PoC; "create" semantics for an immediate result confuse readers |
+| E | `POST /readings/statistics` (original name) | Noun path with POST reads as "submit statistics" next to ingest |
+| F | `POST /readings/query` | Clear action, but suggests raw readings come back and takes the general name |
+| G | `POST /readings/statistics/query` | Clear but long; close in spirit to D |
+| H | `POST /readings/_search` or `/readings:query` | OpenSearch / Google AIP style; unusual in a small REST API |
 
 ### Consequences
 

@@ -9,7 +9,7 @@
 |---|---|
 | Operators / provisioning | `POST /api/v1/sensors` to register a sensor; `GET /api/v1/sensors[/{id}]` to list or fetch |
 | Sensors (or any HTTP client) | `POST /api/v1/sensors/{id}/readings` to report metric values |
-| API consumers | `POST /api/v1/readings/statistics` aggregate query |
+| API consumers | `POST /api/v1/readings/aggregate` aggregate query |
 | SQLite database | Only datastore; local file, owned by the API |
 
 Endpoint design: [ADR-004](09-architecture-decisions.md).

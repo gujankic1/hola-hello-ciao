@@ -7,7 +7,7 @@ from hola_hello_ciao.core.deps import get_session
 from hola_hello_ciao.statistics import service
 from hola_hello_ciao.statistics.schemas import StatisticsQuery, StatisticsResponse
 
-router = APIRouter(prefix="/readings/statistics", tags=["statistics"])
+router = APIRouter(prefix="/readings/aggregate", tags=["statistics"])
 
 SessionDep = Annotated[Session, Depends(get_session)]
 

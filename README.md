@@ -43,7 +43,7 @@ Allowed metrics: `temperature`, `humidity`, `wind_speed`, `pressure`, `rainfall`
 Query statistics (min, max, sum or avg per metric): average temperature and humidity of sensor 1 over a window. Omit `sensor_ids` for all sensors (at most 1000 IDs per query); omit `from`/`to` for the last 24 h; a window must be 1 day to 31 days (`from` and `to` together, or `to` alone):
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/readings/statistics \
+curl -X POST http://127.0.0.1:8000/api/v1/readings/aggregate \
   -H 'Content-Type: application/json' \
   -d '{"sensor_ids": [1], "from": "2026-11-10T00:00:00Z", "to": "2026-11-17T00:00:00Z",
        "metrics": [{"name": "temperature", "stat": "avg"}, {"name": "humidity", "stat": "avg"}]}'
@@ -73,7 +73,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy
 - One FastAPI app, one SQLite file, one process: the simplest thing that meets the brief.
 - Readings are stored one row per metric value ([ADR-003](docs/arc42/09-architecture-decisions.md)); metric names are a closed enum ([ADR-005](docs/arc42/09-architecture-decisions.md)).
 - Layered by feature (router → service → DB), see [ADR-002](docs/arc42/09-architecture-decisions.md).
-- REST design: sensor-scoped ingest, collection-level `POST /readings/statistics` for queries ([ADR-004](docs/arc42/09-architecture-decisions.md)).
+- REST design: sensor-scoped ingest, collection-level `POST /readings/aggregate` for queries ([ADR-004](docs/arc42/09-architecture-decisions.md)).
 
 ## Known limitations and next steps
 

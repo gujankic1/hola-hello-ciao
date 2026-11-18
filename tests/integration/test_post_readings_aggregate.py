@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from hola_hello_ciao.readings.metrics import Metric
 from tests.conftest import AddReading
 
-URL = "/api/v1/readings/statistics"
+URL = "/api/v1/readings/aggregate"
 
 
 def test_average_temperature_and_humidity_for_sensor_in_last_week(

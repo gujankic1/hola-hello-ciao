@@ -6,6 +6,9 @@ from pydantic import BaseModel
 from hola_hello_ciao.core.errors import register_error_handlers
 from hola_hello_ciao.features.readings.router import router as readings_router
 from hola_hello_ciao.features.sensors.router import router as sensors_router
+from hola_hello_ciao.features.statistics.router import (
+    experimental_router as statistics_experimental_router,
+)
 from hola_hello_ciao.features.statistics.router import router as statistics_router
 
 
@@ -19,6 +22,7 @@ def create_app() -> FastAPI:
     app.include_router(sensors_router, prefix="/api/v1")
     app.include_router(readings_router, prefix="/api/v1")
     app.include_router(statistics_router, prefix="/api/v1")
+    app.include_router(statistics_experimental_router, prefix="/api/experimental")
 
     @app.get("/health", tags=["meta"], status_code=200, response_model=HealthStatus)
     def health() -> HealthStatus:

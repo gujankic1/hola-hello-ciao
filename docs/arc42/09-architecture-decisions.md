@@ -198,3 +198,27 @@ Each ADR records a significant decision and why it was made. When the reasoning 
 - **Keep module functions and `monkeypatch` (ADR-007):** less code, but hidden dependencies and import-style-sensitive tests.
 - **Collaborators as function parameters with defaults:** explicit, but every call site and signature grows.
 - **A DI container (e.g. `dependency-injector`):** an extra dependency and concept that `Depends` already covers.
+
+## ADR-009: Experimental natural-language aggregate query, rule-based
+
+*Accepted, 2026-11-19*
+
+**Context.** Clients may prefer a sentence such as "average temperature for sensor 1 last week" to the structured aggregate body. It is a trial, and the PoC adds no dependencies without reason.
+
+**Decision**
+
+- `POST /api/experimental/readings/aggregate` takes `{"query": "<sentence>"}` and answers like `POST /api/v1/readings/aggregate`, plus `interpreted_query`: the structured query the sentence was read as. The path is the same because the operation is; only the input differs.
+- `/api/experimental` has no stability guarantee: endpoints there may change or disappear without a version bump. They get their own router, so promoting or dropping one is a line in `main.py`.
+- A rule-based parser (`statistics/experimental_nlp_parser_utils.py`, standard library only) builds a `StatisticsQuery` from a fixed vocabulary of statistics, metrics, sensor IDs and time phrases, and ignores other words. Text it cannot read, or that breaks a query rule, returns 422 `invalid_query`.
+- An `ExperimentalNlpStatisticsService` in the `statistics` feature parses the sentence and has `StatisticsService` answer it, so the stable service knows nothing about sentences. It is a second service in the feature, without a repository of its own, because it only builds on the feature's main service; the parser stays a pure function.
+
+**Reasons.** The structured query and its rules are reused unchanged. Parsing is deterministic and testable, with no dependency, network call or per-request cost. `interpreted_query` shows the client what was understood.
+
+**Consequences.** Only English phrasings the vocabulary covers work (chapter 11, R6); negation is ignored and sensor names are not recognised. The service, not the HTTP boundary, validates the parsed query (chapter 8).
+
+**Alternatives**
+
+- **`dateparser` or spaCy:** fuzzier dates and phrasing, but a dependency for a closed vocabulary.
+- **An LLM returning schema-constrained JSON:** handles almost any phrasing, but adds an API key, latency, cost and non-deterministic output. The next step if the endpoint proves useful; it would replace only the parser.
+- **Under `/api/v1`:** simpler, but implies the same stability as the other endpoints.
+- **A sub-path such as `/readings/aggregate/nlp`:** names the parsing technique, not the resource.

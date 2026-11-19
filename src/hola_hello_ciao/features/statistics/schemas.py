@@ -125,3 +125,28 @@ class StatisticsResponse(BaseModel):
     sensors: list[SensorStatistics] = Field(
         description="In the order of `sensor_ids`; when querying all sensors, sorted by `sensor_id`"
     )
+
+
+# Experimental (ADR-009). "Try it out" uses the default window, like `_QUERY_EXAMPLE`.
+_NLP_QUERY_EXAMPLE = "average temperature and max wind speed for sensors 1 and 2"
+
+
+class NlpQuery(BaseModel):
+    """An English sentence, such as "min and max temperature for sensor 3 in the last 7 days"."""
+
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra={"examples": [{"query": _NLP_QUERY_EXAMPLE}]}
+    )
+
+    query: str = Field(min_length=1, max_length=500)
+
+
+class NlpStatisticsResponse(StatisticsResponse):
+    model_config = ConfigDict(
+        # `_NLP_QUERY_EXAMPLE` reads as `_QUERY_EXAMPLE`; nulls are stripped (see `value`).
+        json_schema_extra={"examples": [{**_RESPONSE_EXAMPLE, "interpreted_query": _QUERY_EXAMPLE}]}
+    )
+
+    interpreted_query: StatisticsQuery = Field(
+        description="The structured query the sentence was read as"
+    )

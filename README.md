@@ -48,6 +48,8 @@ Three resources, all under `/api/v1`:
 | `POST /readings/aggregate` | Query a statistic per metric over a time window, for some or all sensors |
 | `GET /health` | Liveness check |
 
+Experimental, under `/api/experimental` and without a stability guarantee: `POST /readings/aggregate` takes the aggregate query as an English sentence, e.g. `{"query": "average temperature and max wind for sensors 1 and 2 last week"}`, and also returns how it read it ([ADR-009](docs/arc42/09-architecture-decisions.md)).
+
 How it behaves:
 
 - **Sensors are registered first.** Readings for an unknown sensor are rejected (404); sensors are never created implicitly.

@@ -11,6 +11,7 @@ Known gaps, accepted for a proof of concept, with the fix and when it becomes ne
 | R3 | **No authentication.** Anyone who can reach the API can register sensors, write readings and query them. | Data pollution or disclosure. | Before any deployment beyond a trusted network: API keys per sensor and per client, checked in a FastAPI dependency; HTTPS at the edge. |
 | R4 | **Implausible values are accepted.** Values only need to be finite, and `recorded_at` may lie far in the future. | One faulty sensor skews statistics. | When the first faulty sensor shows up: per-metric value ranges (ADR-005 alternatives) and a limit on future timestamps. |
 | R5 | **No backups.** Out of scope for the PoC. | Data loss on disk failure. | Before holding data that matters: scheduled `sqlite3 .backup` (or Litestream) to off-host storage, with a tested restore. |
+| R6 | **The natural-language query understands a fixed English vocabulary.** Other phrasings, sensor names and dates other than ISO 8601 are rejected; negation is ignored (ADR-009). | Clients get 422 for sentences a person would understand, or, with negation, more results than asked for. | If the experimental endpoint is kept: an LLM returning a schema-constrained query in place of the parser (ADR-009 alternatives). |
 
 ### R1 measurement
 

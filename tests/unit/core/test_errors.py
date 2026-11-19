@@ -7,6 +7,7 @@ from sqlalchemy.exc import OperationalError
 from hola_hello_ciao.core.errors import (
     ConflictError,
     ErrorResponse,
+    InvalidQueryError,
     NotFoundError,
     StorageError,
     register_error_handlers,
@@ -34,6 +35,7 @@ def test_unexpected_exception_returns_generic_500_without_internals() -> None:
     [
         (NotFoundError("Sensor 42 not found"), 404, "not_found"),
         (ConflictError("Different value"), 409, "conflict"),
+        (InvalidQueryError("No metric recognised"), 422, "invalid_query"),
         (StorageError("Could not load the sensor"), 500, "storage_error"),
         (OperationalError("SELECT 1", {}, Exception("disk I/O error")), 500, "storage_error"),
         (RuntimeError("boom"), 500, "internal_error"),

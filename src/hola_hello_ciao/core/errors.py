@@ -6,7 +6,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 
-ErrorCode = Literal["validation_error", "not_found", "conflict", "storage_error", "internal_error"]
+ErrorCode = Literal[
+    "validation_error", "invalid_query", "not_found", "conflict", "storage_error", "internal_error"
+]
 
 
 class ErrorDetail(BaseModel):
@@ -46,6 +48,13 @@ class AppError(Exception):
 class NotFoundError(AppError):
     status_code = 404
     code = "not_found"
+
+
+class InvalidQueryError(AppError):
+    """A request body that is well-formed but cannot be read as a query (ADR-009)."""
+
+    status_code = 422
+    code = "invalid_query"
 
 
 class ConflictError(AppError):

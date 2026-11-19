@@ -38,7 +38,7 @@ Each ADR records a significant decision and why it was made. When the reasoning 
 - Layers with one-way dependencies: `router` → `service` → `repository`. Services never import FastAPI; only repositories touch the ORM.
 - Business code lives under `features/`, one folder per feature (`sensors`, `readings`, `statistics`), each with its own router, schemas, service and repository. Technical infrastructure lives in `core/`.
 - `features/shared/` holds business vocabulary used by two or more features (today: `Metric`). It has no tables, endpoints, services or repositories, and imports no feature. Models stay with the feature that owns the table.
-- FastAPI `Depends` injects the DB session. Services are plain functions that take the session; they are not injected.
+- FastAPI `Depends` injects the DB session. Services are plain functions that take the session; they are not injected. *Superseded by ADR-008: services and repositories are constructor-injected classes.*
 - Endpoints are synchronous (`def`) with the synchronous SQLite driver.
 
 **Reasons**
@@ -147,7 +147,7 @@ Each ADR records a significant decision and why it was made. When the reasoning 
 
 ## ADR-007: Service unit tests mock their collaborators
 
-*Accepted, 2026-11-19*
+*Accepted, 2026-11-19. Partly superseded by ADR-008: mocks are passed to the service's constructor instead of patched in with `monkeypatch`.*
 
 **Context.** Service tests ran through the real repositories on a temporary SQLite file, so a query bug also failed them.
 
@@ -166,3 +166,35 @@ Each ADR records a significant decision and why it was made. When the reasoning 
 
 - **Real database at every level:** catches wiring bugs, but the tests are not unit tests.
 - **`pytest-mock`:** an extra dependency for what `monkeypatch` and `create_autospec` already do.
+
+## ADR-008: Constructor-injected services and repositories
+
+*Accepted, 2026-11-19. Supersedes the service-injection bullet of ADR-002 and the `monkeypatch` part of ADR-007.*
+
+**Context.** Services were module functions that imported their repository and other features' services, and tests replaced those names with `monkeypatch`. Dependencies were invisible in signatures, and a test only patched correctly if it matched the service's import style: switching `from sensors.service import get_sensor` to a module import would silently stop the patch, and the real code would run against the fake session. `ingest_reading` already had two collaborators besides the session, the revisit trigger ADR-002 named.
+
+**Decision**
+
+- Repositories are classes that take the `Session` in `__init__`. Services are classes that take their repository and any other feature's service in `__init__`; they never see the session.
+- Each feature has a `deps.py` with provider functions and `Annotated[..., Depends(...)]` aliases (e.g. `SensorServiceDep`). Routers depend on the service alias; other features' providers reuse it.
+- Collaborators are typed with the concrete classes. No Protocols or abstract base classes until a second implementation exists.
+- Service unit tests construct the service with `create_autospec(XRepository, instance=True)` and `create_autospec(OtherService, instance=True)`. Repository tests construct the repository with the real temporary-SQLite session.
+
+**Reasons**
+
+- A class's dependencies are its constructor; tests pass mocks instead of patching module names, so import style no longer matters.
+- FastAPI caches `get_session` per request, so every layer in one request shares one session and transaction; integration tests still override only `get_session`.
+- `Depends` is enough; a DI container would be a new dependency for no gain.
+- Protocols would duplicate every signature for an implementation that does not exist yet.
+
+**Consequences**
+
+- One more file per feature (`deps.py`) and a class per repository and service.
+- Wiring mistakes in providers show up only in integration tests, as before.
+- Readings still depends on sensors' concrete service; introduce a Protocol owned by the consuming feature if that coupling starts to hurt.
+
+**Alternatives**
+
+- **Keep module functions and `monkeypatch` (ADR-007):** less code, but hidden dependencies and import-style-sensitive tests.
+- **Collaborators as function parameters with defaults:** explicit, but every call site and signature grows.
+- **A DI container (e.g. `dependency-injector`):** an extra dependency and concept that `Depends` already covers.

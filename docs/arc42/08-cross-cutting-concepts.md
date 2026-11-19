@@ -41,7 +41,7 @@ Routing errors (unknown path or method) keep FastAPI's default `{"detail": ...}`
 
 ## Persistence and transactions
 
-- One SQLAlchemy `Session` per request (`core/deps.py`), injected with `Depends`; services pass it to repositories.
+- One SQLAlchemy `Session` per request (`core/deps.py`), injected with `Depends` into the repositories; services only see repositories (ADR-008).
 - Repositories own the transaction: they commit on success, and `storage_errors` rolls back on failure.
 - Every connection sets two `PRAGMA`s (`core/db.py`):
   - `foreign_keys=ON` (off by default in SQLite, per connection): the database rejects a reading for an unknown sensor, backing up the service's 404 check.

@@ -20,38 +20,42 @@ class Aggregate(NamedTuple):
     reading_count: int
 
 
-def aggregate_readings(
-    session: Session,
-    sensor_ids: list[int] | None,
-    metrics: list[Metric],
-    window_start: datetime,
-    window_end: datetime,
-) -> list[Aggregate]:
-    """Aggregates per (sensor, metric) over [window_start, window_end), UTC.
+class StatisticsRepository:
+    def __init__(self, session: Session) -> None:
+        self._session = session
 
-    sensor_ids None means all sensors.
-    """
-    query = (
-        select(
-            Reading.sensor_id,
-            Reading.metric,
-            func.min(Reading.value),
-            func.max(Reading.value),
-            func.sum(Reading.value),
-            func.avg(Reading.value),
-            func.count(),
+    def aggregate_readings(
+        self,
+        sensor_ids: list[int] | None,
+        metrics: list[Metric],
+        window_start: datetime,
+        window_end: datetime,
+    ) -> list[Aggregate]:
+        """Aggregates per (sensor, metric) over [window_start, window_end), UTC.
+
+        sensor_ids None means all sensors.
+        """
+        query = (
+            select(
+                Reading.sensor_id,
+                Reading.metric,
+                func.min(Reading.value),
+                func.max(Reading.value),
+                func.sum(Reading.value),
+                func.avg(Reading.value),
+                func.count(),
+            )
+            .where(
+                Reading.metric.in_([metric.value for metric in metrics]),
+                Reading.recorded_at >= window_start.replace(tzinfo=None),
+                Reading.recorded_at < window_end.replace(tzinfo=None),
+            )
+            .group_by(Reading.sensor_id, Reading.metric)
         )
-        .where(
-            Reading.metric.in_([metric.value for metric in metrics]),
-            Reading.recorded_at >= window_start.replace(tzinfo=None),
-            Reading.recorded_at < window_end.replace(tzinfo=None),
+        # Always constrain sensor_id, the index's leading column: SQLite then seeks one index
+        # range per sensor instead of scanning the whole index (chapter 11, R1).
+        query = query.where(
+            Reading.sensor_id.in_(select(Sensor.id) if sensor_ids is None else sensor_ids)
         )
-        .group_by(Reading.sensor_id, Reading.metric)
-    )
-    # Always constrain sensor_id, the index's leading column: SQLite then seeks one index
-    # range per sensor instead of scanning the whole index (chapter 11, R1).
-    query = query.where(
-        Reading.sensor_id.in_(select(Sensor.id) if sensor_ids is None else sensor_ids)
-    )
-    with storage_errors(session, "Could not load statistics"):
-        return [Aggregate(*row) for row in session.execute(query)]
+        with storage_errors(self._session, "Could not load statistics"):
+            return [Aggregate(*row) for row in self._session.execute(query)]

@@ -7,4 +7,4 @@
 | Low operating cost | No external services; embedded database; env-based config |
 | Evolvability | Decisions recorded as ADRs; schema changes via Alembic migrations, checked against the models in tests |
 
-Layering: per feature, `router` → `service` → `repository` ([ADR-002](09-architecture-decisions.md), [chapter 5](05-building-blocks.md)).
+Layering: per feature, `router` → `service` → `repository` ([ADR-002](09-architecture-decisions.md), [ADR-008](09-architecture-decisions.md), [chapter 5](05-building-blocks.md)).

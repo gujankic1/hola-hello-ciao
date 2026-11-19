@@ -47,9 +47,14 @@ def test_find_values_returns_only_exact_matches(session: Session, sensor_id: int
     ts = datetime(2026, 11, 17, 10, 0, tzinfo=UTC)
     repository.add_many(session, sensor_id, {Metric.TEMPERATURE: 1.5, Metric.HUMIDITY: 40}, ts)
 
-    found = repository.find_values(session, sensor_id, [Metric.TEMPERATURE, Metric.WIND_SPEED], ts)
+    found = repository.find_stored_values(
+        session, sensor_id, [Metric.TEMPERATURE, Metric.WIND_SPEED], ts
+    )
 
     assert found == {Metric.TEMPERATURE: 1.5}
     assert (
-        repository.find_values(session, sensor_id, [Metric.TEMPERATURE], ts.replace(minute=1)) == {}
+        repository.find_stored_values(
+            session, sensor_id, [Metric.TEMPERATURE], ts.replace(minute=1)
+        )
+        == {}
     )

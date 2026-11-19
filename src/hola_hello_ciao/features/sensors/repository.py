@@ -18,7 +18,7 @@ def get(session: Session, sensor_id: int) -> Sensor | None:
         return session.get(Sensor, sensor_id)
 
 
-def existing_ids(session: Session, sensor_ids: list[int]) -> set[int]:
+def find_existing_ids(session: Session, sensor_ids: list[int]) -> set[int]:
     """The subset of sensor_ids that exist, in one query."""
     with storage_errors(session, "Could not load the sensors"):
         return set(session.scalars(select(Sensor.id).where(Sensor.id.in_(sensor_ids))))

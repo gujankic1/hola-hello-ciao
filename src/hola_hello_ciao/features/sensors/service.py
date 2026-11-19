@@ -5,8 +5,8 @@ from hola_hello_ciao.features.sensors import repository
 from hola_hello_ciao.features.sensors.schemas import SensorCreate, SensorRead
 
 
-def create_sensor(session: Session, data: SensorCreate) -> SensorRead:
-    sensor = repository.add(session, data.name)
+def create_sensor(session: Session, new_sensor: SensorCreate) -> SensorRead:
+    sensor = repository.add(session, new_sensor.name)
     return SensorRead.model_validate(sensor)
 
 
@@ -18,12 +18,12 @@ def get_sensor(session: Session, sensor_id: int) -> SensorRead:
 
 
 def ensure_sensors_exist(session: Session, sensor_ids: list[int]) -> None:
-    """NotFoundError naming every unknown id."""
-    found = repository.existing_ids(session, sensor_ids)
-    missing = [i for i in sensor_ids if i not in found]
-    if missing:
-        raise NotFoundError(f"Sensors not found: {', '.join(map(str, missing))}")
+    """Raise NotFoundError naming every unknown id, in the order they were given."""
+    existing_ids = repository.find_existing_ids(session, sensor_ids)
+    missing_ids = [sensor_id for sensor_id in sensor_ids if sensor_id not in existing_ids]
+    if missing_ids:
+        raise NotFoundError(f"Sensors not found: {', '.join(map(str, missing_ids))}")
 
 
 def list_sensors(session: Session) -> list[SensorRead]:
-    return [SensorRead.model_validate(s) for s in repository.list_all(session)]
+    return [SensorRead.model_validate(sensor) for sensor in repository.list_all(session)]

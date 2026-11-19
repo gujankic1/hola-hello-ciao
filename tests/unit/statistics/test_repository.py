@@ -22,7 +22,7 @@ def test_aggregates_per_sensor_and_metric(
         add_reading(sensor_id, Metric.TEMPERATURE, value, datetime(2026, 11, 1, hour))
     add_reading(sensor_id, Metric.HUMIDITY, 5, datetime(2026, 11, 1, 12))
 
-    rows = repository.aggregate(session, [sensor_id], [Metric.TEMPERATURE], START, END)
+    rows = repository.aggregate_readings(session, [sensor_id], [Metric.TEMPERATURE], START, END)
 
     assert rows == [repository.Aggregate(sensor_id, "temperature", 10, 60, 90, 30, 3)]
 
@@ -34,7 +34,7 @@ def test_window_is_inclusive_start_exclusive_end(
     add_reading(sensor_id, Metric.TEMPERATURE, 100, END)  # excluded
     add_reading(sensor_id, Metric.TEMPERATURE, 100, datetime(2026, 10, 31, 23, 59))  # before
 
-    (row,) = repository.aggregate(session, None, [Metric.TEMPERATURE], START, END)
+    (row,) = repository.aggregate_readings(session, None, [Metric.TEMPERATURE], START, END)
 
     assert row.reading_count == 1 and row.sum == 1
 
@@ -48,8 +48,10 @@ def test_none_means_all_sensors_and_list_filters(
     add_reading(sensor_id, Metric.TEMPERATURE, 1, START)
     add_reading(other.id, Metric.TEMPERATURE, 2, START)
 
-    everyone = repository.aggregate(session, None, [Metric.TEMPERATURE], START, END)
-    only_other = repository.aggregate(session, [other.id], [Metric.TEMPERATURE], START, END)
+    everyone = repository.aggregate_readings(session, None, [Metric.TEMPERATURE], START, END)
+    only_other = repository.aggregate_readings(
+        session, [other.id], [Metric.TEMPERATURE], START, END
+    )
 
     assert {r.sensor_id for r in everyone} == {sensor_id, other.id}
     assert [r.sensor_id for r in only_other] == [other.id]
@@ -59,4 +61,4 @@ def test_raises_storage_error(session: Session, engine: Engine) -> None:
     Reading.__table__.drop(engine)
 
     with pytest.raises(StorageError, match="Could not load statistics"):
-        repository.aggregate(session, None, [Metric.TEMPERATURE], START, END)
+        repository.aggregate_readings(session, None, [Metric.TEMPERATURE], START, END)

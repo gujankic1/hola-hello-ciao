@@ -7,7 +7,7 @@ from pydantic.config import JsonDict
 from hola_hello_ciao.core.types import UtcDatetime
 from hola_hello_ciao.features.shared.metrics import Metric
 
-Value = Annotated[float, Field(allow_inf_nan=False)]
+MetricValue = Annotated[float, Field(allow_inf_nan=False)]
 
 # Shown in Swagger as the example body; keep it valid input.
 _METRICS_EXAMPLE: JsonDict = {"temperature": 21.5, "humidity": 40.0, "wind_speed": 3.2}
@@ -21,7 +21,7 @@ class ReadingCreate(BaseModel):
         }
     )
 
-    metrics: Annotated[dict[Metric, Value], Field(min_length=1)]
+    metrics: Annotated[dict[Metric, MetricValue], Field(min_length=1)]
     recorded_at: UtcDatetime  # part of the reading's identity: (sensor, metric, recorded_at)
 
 

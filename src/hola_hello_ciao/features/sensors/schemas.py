@@ -15,7 +15,7 @@ class SensorCreate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def _check_name(cls, name: str | None) -> str | None:
+    def _strip_and_reject_blank_name(cls, name: str | None) -> str | None:
         if name is None:
             return None
         name = name.strip()

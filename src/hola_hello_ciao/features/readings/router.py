@@ -10,6 +10,6 @@ router = APIRouter(prefix="/sensors/{sensor_id}/readings", tags=["readings"])
 
 @router.post("", status_code=201, response_model=ReadingCreated)
 def create_reading(
-    sensor_id: SensorId, payload: ReadingCreate, session: SessionDep
+    sensor_id: SensorId, reading: ReadingCreate, session: SessionDep
 ) -> ReadingCreated:
-    return service.ingest(session, sensor_id, payload)
+    return service.ingest_reading(session, sensor_id, reading)

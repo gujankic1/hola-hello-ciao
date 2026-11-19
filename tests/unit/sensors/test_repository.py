@@ -37,7 +37,7 @@ def test_get_raises_storage_error_when_read_fails(session: Session, engine: Engi
 def test_existing_ids_returns_only_known_ids(session: Session) -> None:
     sensor = repository.add(session, "roof-station")
 
-    assert repository.existing_ids(session, [sensor.id, 999]) == {sensor.id}
+    assert repository.find_existing_ids(session, [sensor.id, 999]) == {sensor.id}
 
 
 def test_existing_ids_raises_storage_error_when_read_fails(
@@ -46,7 +46,7 @@ def test_existing_ids_raises_storage_error_when_read_fails(
     Sensor.__table__.drop(engine)
 
     with pytest.raises(StorageError, match="Could not load the sensors"):
-        repository.existing_ids(session, [1])
+        repository.find_existing_ids(session, [1])
 
 
 def test_list_all_returns_sensors_ordered_by_id(session: Session) -> None:

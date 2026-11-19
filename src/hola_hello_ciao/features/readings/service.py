@@ -6,7 +6,7 @@ from hola_hello_ciao.features.readings.schemas import ReadingCreate, ReadingCrea
 from hola_hello_ciao.features.sensors.service import get_sensor
 
 
-def ingest(session: Session, sensor_id: int, data: ReadingCreate) -> ReadingCreated:
+def ingest_reading(session: Session, sensor_id: int, reading: ReadingCreate) -> ReadingCreated:
     """Store one row per metric, idempotently per (sensor, metric, recorded_at).
 
     Values already stored with the same value are skipped (a retry succeeds). A different
@@ -14,13 +14,26 @@ def ingest(session: Session, sensor_id: int, data: ReadingCreate) -> ReadingCrea
     NotFoundError if the sensor is unknown.
     """
     sensor = get_sensor(session, sensor_id)
-    existing = repository.find_values(session, sensor.id, list(data.metrics), data.recorded_at)
-    conflicts = sorted(m.value for m, v in existing.items() if v != data.metrics[m])
-    if conflicts:
+    stored_value_by_metric = repository.find_stored_values(
+        session, sensor.id, list(reading.metrics), reading.recorded_at
+    )
+    conflicting_metric_names = sorted(
+        metric.value
+        for metric, stored_value in stored_value_by_metric.items()
+        if stored_value != reading.metrics[metric]
+    )
+    if conflicting_metric_names:
         raise ConflictError(
             f"Sensor {sensor.id} already has different values at "
-            f"{data.recorded_at.isoformat()} for: {', '.join(conflicts)}"
+            f"{reading.recorded_at.isoformat()} for: {', '.join(conflicting_metric_names)}"
         )
-    new = {m: v for m, v in data.metrics.items() if m not in existing}
-    repository.add_many(session, sensor.id, new, data.recorded_at)
-    return ReadingCreated(sensor_id=sensor.id, recorded_at=data.recorded_at, metrics=data.metrics)
+
+    new_value_by_metric = {
+        metric: value
+        for metric, value in reading.metrics.items()
+        if metric not in stored_value_by_metric
+    }
+    repository.add_many(session, sensor.id, new_value_by_metric, reading.recorded_at)
+    return ReadingCreated(
+        sensor_id=sensor.id, recorded_at=reading.recorded_at, metrics=reading.metrics
+    )

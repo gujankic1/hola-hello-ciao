@@ -6,7 +6,7 @@ from hola_hello_ciao.features.sensors.service import ensure_sensors_exist
 from hola_hello_ciao.features.statistics import repository
 from hola_hello_ciao.features.statistics.repository import Aggregate
 from hola_hello_ciao.features.statistics.schemas import (
-    DEFAULT_RANGE,
+    DEFAULT_WINDOW,
     MetricStat,
     SensorStatistics,
     Stat,
@@ -19,13 +19,13 @@ from hola_hello_ciao.features.statistics.schemas import (
 def compute_statistics(session: Session, query: StatisticsQuery) -> StatisticsResponse:
     """Requested statistics per sensor over the window; NotFoundError for unknown sensor ids."""
     window_end = query.to or datetime.now(UTC)
-    window_start = query.from_ or window_end - DEFAULT_RANGE
+    window_start = query.from_ or window_end - DEFAULT_WINDOW
 
     if query.sensor_ids is not None:
         ensure_sensors_exist(session, query.sensor_ids)
 
     requested_metrics = [requested.name for requested in query.metrics]
-    aggregates = repository.aggregate(
+    aggregates = repository.aggregate_readings(
         session, query.sensor_ids, requested_metrics, window_start, window_end
     )
     aggregate_by_sensor_and_metric = {

@@ -52,17 +52,17 @@ def test_get_sensor_unknown_id_raises_not_found(
 def test_ensure_sensors_exist_passes_for_known_ids(
     repo: MagicMock, fake_session: NonCallableMagicMock
 ) -> None:
-    repo.existing_ids.return_value = {1, 2}
+    repo.find_existing_ids.return_value = {1, 2}
 
     service.ensure_sensors_exist(fake_session, [1, 2])
 
-    repo.existing_ids.assert_called_once_with(fake_session, [1, 2])
+    repo.find_existing_ids.assert_called_once_with(fake_session, [1, 2])
 
 
 def test_ensure_sensors_exist_names_every_missing_id_in_request_order(
     repo: MagicMock, fake_session: NonCallableMagicMock
 ) -> None:
-    repo.existing_ids.return_value = {5}
+    repo.find_existing_ids.return_value = {5}
 
     with pytest.raises(NotFoundError, match="Sensors not found: 999, 998"):
         service.ensure_sensors_exist(fake_session, [999, 5, 998])

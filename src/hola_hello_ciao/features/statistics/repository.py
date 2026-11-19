@@ -20,14 +20,17 @@ class Aggregate(NamedTuple):
     reading_count: int
 
 
-def aggregate(
+def aggregate_readings(
     session: Session,
     sensor_ids: list[int] | None,
     metrics: list[Metric],
-    start: datetime,
-    end: datetime,
+    window_start: datetime,
+    window_end: datetime,
 ) -> list[Aggregate]:
-    """Aggregates per (sensor, metric) over [start, end), UTC. sensor_ids None = all."""
+    """Aggregates per (sensor, metric) over [window_start, window_end), UTC.
+
+    sensor_ids None means all sensors.
+    """
     query = (
         select(
             Reading.sensor_id,
@@ -39,9 +42,9 @@ def aggregate(
             func.count(),
         )
         .where(
-            Reading.metric.in_([m.value for m in metrics]),
-            Reading.recorded_at >= start.replace(tzinfo=None),
-            Reading.recorded_at < end.replace(tzinfo=None),
+            Reading.metric.in_([metric.value for metric in metrics]),
+            Reading.recorded_at >= window_start.replace(tzinfo=None),
+            Reading.recorded_at < window_end.replace(tzinfo=None),
         )
         .group_by(Reading.sensor_id, Reading.metric)
     )

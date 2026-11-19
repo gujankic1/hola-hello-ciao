@@ -8,8 +8,8 @@ router = APIRouter(prefix="/sensors", tags=["sensors"])
 
 
 @router.post("", status_code=201, response_model=SensorRead)
-def create_sensor(payload: SensorCreate, session: SessionDep) -> SensorRead:
-    return service.create_sensor(session, payload)
+def create_sensor(new_sensor: SensorCreate, session: SessionDep) -> SensorRead:
+    return service.create_sensor(session, new_sensor)
 
 
 @router.get("", status_code=200, response_model=list[SensorRead])

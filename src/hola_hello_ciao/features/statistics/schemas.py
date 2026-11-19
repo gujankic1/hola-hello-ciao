@@ -8,9 +8,9 @@ from hola_hello_ciao.core.types import UtcDatetime
 from hola_hello_ciao.features.sensors.schemas import SensorId
 from hola_hello_ciao.features.shared.metrics import Metric
 
-MIN_RANGE = timedelta(days=1)
-MAX_RANGE = timedelta(days=31)  # "one month" (ADR-004)
-DEFAULT_RANGE = timedelta(hours=24)
+MIN_WINDOW = timedelta(days=1)
+MAX_WINDOW = timedelta(days=31)  # "one month" (ADR-004)
+DEFAULT_WINDOW = timedelta(hours=24)
 # Each id becomes a bound SQL parameter; stay far below SQLite's limit (32766). Omit
 # sensor_ids to query all sensors.
 MAX_SENSOR_IDS = 1000
@@ -74,16 +74,16 @@ class StatisticsQuery(BaseModel):
 
     @field_validator("sensor_ids")
     @classmethod
-    def _no_duplicate_sensor_ids(cls, ids: list[int] | None) -> list[int] | None:
-        if ids is not None and len(set(ids)) != len(ids):
+    def _no_duplicate_sensor_ids(cls, sensor_ids: list[int] | None) -> list[int] | None:
+        if sensor_ids is not None and len(set(sensor_ids)) != len(sensor_ids):
             raise ValueError("duplicate sensor id")
-        return ids
+        return sensor_ids
 
     @field_validator("metrics")
     @classmethod
-    def _no_duplicate_pairs(cls, metrics: list[MetricStat]) -> list[MetricStat]:
-        pairs = [(m.name, m.stat) for m in metrics]
-        if len(set(pairs)) != len(pairs):
+    def _no_duplicate_metric_stats(cls, metrics: list[MetricStat]) -> list[MetricStat]:
+        metric_stat_pairs = [(metric_stat.name, metric_stat.stat) for metric_stat in metrics]
+        if len(set(metric_stat_pairs)) != len(metric_stat_pairs):
             raise ValueError("duplicate metric/stat pair")
         return metrics
 
@@ -94,7 +94,7 @@ class StatisticsQuery(BaseModel):
         if self.from_ is not None and self.to is not None:
             if self.from_ >= self.to:
                 raise ValueError("'from' must be before 'to'")
-            if not MIN_RANGE <= self.to - self.from_ <= MAX_RANGE:
+            if not MIN_WINDOW <= self.to - self.from_ <= MAX_WINDOW:
                 raise ValueError("date range must be between 1 day and 31 days")
         return self
 

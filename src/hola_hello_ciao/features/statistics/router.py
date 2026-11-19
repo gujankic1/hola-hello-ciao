@@ -8,5 +8,5 @@ router = APIRouter(prefix="/readings/aggregate", tags=["statistics"])
 
 
 @router.post("", status_code=200, response_model=StatisticsResponse)
-def query_statistics(payload: StatisticsQuery, session: SessionDep) -> StatisticsResponse:
-    return service.compute_statistics(session, payload)
+def query_statistics(query: StatisticsQuery, session: SessionDep) -> StatisticsResponse:
+    return service.compute_statistics(session, query)

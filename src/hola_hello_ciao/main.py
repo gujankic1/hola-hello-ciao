@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 
 from hola_hello_ciao.core.errors import register_error_handlers
-from hola_hello_ciao.readings.router import router as readings_router
-from hola_hello_ciao.sensors.router import router as sensors_router
-from hola_hello_ciao.statistics.router import router as statistics_router
+from hola_hello_ciao.features.readings.router import router as readings_router
+from hola_hello_ciao.features.sensors.router import router as sensors_router
+from hola_hello_ciao.features.statistics.router import router as statistics_router
 
 
 def create_app() -> FastAPI:

@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.db import storage_errors
-from hola_hello_ciao.sensors.models import Sensor
+from hola_hello_ciao.features.sensors.models import Sensor
 
 
 def add(session: Session, name: str | None) -> Sensor:

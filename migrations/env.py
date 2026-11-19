@@ -2,8 +2,8 @@ from alembic import context
 
 from hola_hello_ciao.core.config import get_settings
 from hola_hello_ciao.core.db import Base, create_db_engine, sqlite_url
-from hola_hello_ciao.readings import models as readings_models  # noqa: F401
-from hola_hello_ciao.sensors import models as sensors_models  # noqa: F401
+from hola_hello_ciao.features.readings import models as readings_models  # noqa: F401
+from hola_hello_ciao.features.sensors import models as sensors_models  # noqa: F401
 
 target_metadata = Base.metadata
 

@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, NonCallableMagicMock, create_autospec
 import pytest
 
 from hola_hello_ciao.core.errors import ConflictError, NotFoundError
-from hola_hello_ciao.readings import repository, service
-from hola_hello_ciao.readings.metrics import Metric
-from hola_hello_ciao.readings.schemas import ReadingCreate, ReadingCreated
-from hola_hello_ciao.sensors.schemas import SensorRead
+from hola_hello_ciao.features.readings import repository, service
+from hola_hello_ciao.features.readings.schemas import ReadingCreate, ReadingCreated
+from hola_hello_ciao.features.sensors.schemas import SensorRead
+from hola_hello_ciao.features.shared.metrics import Metric
 
 TS = datetime(2026, 11, 17, 10, 0, tzinfo=UTC)
 SENSOR_ID = 7

@@ -50,7 +50,7 @@ Do not add dependencies outside this list without an ADR or explicit approval.
 ├── AGENTS.md
 ├── README.md
 ├── docs/arc42/          # architecture documentation
-├── src/hola_hello_ciao/ # application package (main.py, core/, one folder per feature)
+├── src/hola_hello_ciao/ # application package (main.py, core/, features/<feature>/, features/shared/)
 ├── scripts/             # dev tooling (start commands, seed data); not packaged, ADR-006
 ├── tests/
 │   ├── unit/<feature>/         # service/schema tests, no HTTP
@@ -64,7 +64,8 @@ Only create directories when there is something to put in them.
 ## Architecture rules (ADR-002)
 
 - **Layers, one-way:** `router` → `service` → `repository`. Routers handle HTTP only; services hold business logic and never import FastAPI; only repositories touch SQL/ORM.
-- **Feature folders:** each feature has `router.py`, `schemas.py`, `service.py` and `repository.py`; services call repositories, never the `Session` API directly. Shared infra lives in `core/` (`config`, `db`, `deps`, `errors`, `types`).
+- **Feature folders:** each feature in `features/` has `router.py`, `schemas.py`, `service.py` and `repository.py`; services call repositories, never the `Session` API directly. Shared infra lives in `core/` (`config`, `db`, `deps`, `errors`, `types`).
+- **`features/shared/`:** only business vocabulary (enums, value types, constants) used by two or more features. No tables, endpoints, services or repositories, and no imports from features. ORM models stay in the feature that owns the table.
 - **Dependency injection with `Depends`** (`Annotated[X, Depends(get_x)]`) for the DB session (and settings when an endpoint needs them); services are plain functions taking the session. No other DI framework. Integration tests override via `app.dependency_overrides` with a temporary SQLite file.
 - **Sync endpoints:** use `def`, not `async def`, with the sync SQLite driver. Never run blocking calls inside `async def`.
 - **App setup:** app factory in `main.py`, `lifespan` for startup/shutdown (not `on_event`), one `APIRouter` per feature, version prefix `/api/v1`, a `/health` endpoint.
@@ -75,7 +76,7 @@ Only create directories when there is something to put in them.
 ## Conventions
 
 - **Tests are sorted by level, then feature:**
-  - `tests/unit/<feature>/test_<module>.py` mirrors `src/hola_hello_ciao/<feature>/` and tests services/repositories/schemas directly, without HTTP.
+  - `tests/unit/<feature>/test_<module>.py` mirrors `src/hola_hello_ciao/features/<feature>/` and tests services/repositories/schemas directly, without HTTP.
   - Unit tests test one unit (ADR-007): service tests replace the feature's `repository` module and other features' service functions with `create_autospec` mocks via `monkeypatch`, and pass `fake_session` (`tests/unit/conftest.py`). Repository tests use the real temp SQLite file. Integration tests use no mocks. Routers get no unit tests.
   - `tests/integration/test_<method>_<route>.py` has one file per route, named after it (`/sensors/{sensor_id}/readings` -> `test_post_sensors_readings.py`), and calls the app through `TestClient`.
   - Shared fixtures (temp SQLite file, `session`, `client`, `sensor_id`) live in `tests/conftest.py`. Every test directory has an `__init__.py` (same file names recur across features).

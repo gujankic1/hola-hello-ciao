@@ -2,9 +2,9 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from hola_hello_ciao.sensors.service import ensure_sensors_exist
-from hola_hello_ciao.statistics import repository
-from hola_hello_ciao.statistics.schemas import (
+from hola_hello_ciao.features.sensors.service import ensure_sensors_exist
+from hola_hello_ciao.features.statistics import repository
+from hola_hello_ciao.features.statistics.schemas import (
     DEFAULT_RANGE,
     Stat,
     StatisticsQuery,

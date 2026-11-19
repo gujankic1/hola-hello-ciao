@@ -15,9 +15,9 @@ from typing import Any
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 
-from hola_hello_ciao.readings.metrics import Metric
-from hola_hello_ciao.readings.models import Reading
-from hola_hello_ciao.sensors.models import Sensor
+from hola_hello_ciao.features.readings.models import Reading
+from hola_hello_ciao.features.sensors.models import Sensor
+from hola_hello_ciao.features.shared.metrics import Metric
 
 BATCH_SIZE = 10_000
 

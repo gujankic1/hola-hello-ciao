@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.errors import NotFoundError
-from hola_hello_ciao.sensors import repository
-from hola_hello_ciao.sensors.schemas import SensorCreate, SensorRead
+from hola_hello_ciao.features.sensors import repository
+from hola_hello_ciao.features.sensors.schemas import SensorCreate, SensorRead
 
 
 def create_sensor(session: Session, data: SensorCreate) -> SensorRead:

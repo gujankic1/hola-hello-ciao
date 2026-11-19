@@ -5,9 +5,9 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.errors import StorageError
-from hola_hello_ciao.readings import repository
-from hola_hello_ciao.readings.metrics import Metric
-from hola_hello_ciao.readings.models import Reading
+from hola_hello_ciao.features.readings import repository
+from hola_hello_ciao.features.readings.models import Reading
+from hola_hello_ciao.features.shared.metrics import Metric
 
 
 def test_add_many_stores_one_row_per_metric_as_naive_utc(session: Session, sensor_id: int) -> None:

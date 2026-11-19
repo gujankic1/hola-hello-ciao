@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from hola_hello_ciao.readings.metrics import Metric
-from hola_hello_ciao.readings.models import Reading
+from hola_hello_ciao.features.readings.models import Reading
+from hola_hello_ciao.features.shared.metrics import Metric
 
 TS = "2026-11-17T10:00:00Z"
 

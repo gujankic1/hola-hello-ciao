@@ -5,8 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from pydantic.config import JsonDict
 
 from hola_hello_ciao.core.types import UtcDatetime
-from hola_hello_ciao.readings.metrics import Metric
-from hola_hello_ciao.sensors.schemas import SensorId
+from hola_hello_ciao.features.sensors.schemas import SensorId
+from hola_hello_ciao.features.shared.metrics import Metric
 
 MIN_RANGE = timedelta(days=1)
 MAX_RANGE = timedelta(days=31)  # "one month" (ADR-004)

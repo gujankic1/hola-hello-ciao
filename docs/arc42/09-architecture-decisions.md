@@ -36,14 +36,16 @@ Each ADR records a significant decision and why it was made. When the reasoning 
 **Decision**
 
 - Layers with one-way dependencies: `router` → `service` → `repository`. Services never import FastAPI; only repositories touch the ORM.
-- Code is organised by feature (`sensors`, `readings`, `statistics`), each with its own router, schemas, service and repository.
+- Business code lives under `features/`, one folder per feature (`sensors`, `readings`, `statistics`), each with its own router, schemas, service and repository. Technical infrastructure lives in `core/`.
+- `features/shared/` holds business vocabulary used by two or more features (today: `Metric`). It has no tables, endpoints, services or repositories, and imports no feature. Models stay with the feature that owns the table.
 - FastAPI `Depends` injects the DB session. Services are plain functions that take the session; they are not injected.
 - Endpoints are synchronous (`def`) with the synchronous SQLite driver.
 
 **Reasons**
 
 - Logic is testable without HTTP, and persistence can change independently.
-- Feature folders keep related code together.
+- Feature folders keep related code together; `features/` vs `core/` shows what is business and what is infrastructure.
+- A shared business term gets a neutral home instead of living in one feature that others import it from.
 - `Depends` is built in and lets integration tests swap in a temporary database. Service tests patch the module-level repository instead (ADR-007). Injecting services would add a class and a provider per feature for no gain: they have one dependency, no state and one implementation.
 - Blocking SQLite calls inside `async def` would stall the event loop. Async would not help with SQLite anyway: there is still one writer, and async SQLite drivers use a thread.
 

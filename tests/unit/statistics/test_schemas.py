@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from hola_hello_ciao.statistics.schemas import MAX_SENSOR_IDS, StatisticsQuery
+from hola_hello_ciao.features.statistics.schemas import MAX_SENSOR_IDS, StatisticsQuery
 
 METRICS = [{"name": "temperature", "stat": "avg"}]
 T0 = datetime(2026, 11, 1, tzinfo=UTC)

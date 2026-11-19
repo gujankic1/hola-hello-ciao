@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
 from hola_hello_ciao.core.deps import SessionDep
-from hola_hello_ciao.sensors import service
-from hola_hello_ciao.sensors.schemas import SensorCreate, SensorId, SensorRead
+from hola_hello_ciao.features.sensors import service
+from hola_hello_ciao.features.sensors.schemas import SensorCreate, SensorId, SensorRead
 
 router = APIRouter(prefix="/sensors", tags=["sensors"])
 

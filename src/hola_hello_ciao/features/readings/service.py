@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.errors import ConflictError
-from hola_hello_ciao.readings import repository
-from hola_hello_ciao.readings.schemas import ReadingCreate, ReadingCreated
-from hola_hello_ciao.sensors.service import get_sensor
+from hola_hello_ciao.features.readings import repository
+from hola_hello_ciao.features.readings.schemas import ReadingCreate, ReadingCreated
+from hola_hello_ciao.features.sensors.service import get_sensor
 
 
 def ingest(session: Session, sensor_id: int, data: ReadingCreate) -> ReadingCreated:

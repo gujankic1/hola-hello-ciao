@@ -3,8 +3,8 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.errors import StorageError
-from hola_hello_ciao.sensors import repository
-from hola_hello_ciao.sensors.models import Sensor
+from hola_hello_ciao.features.sensors import repository
+from hola_hello_ciao.features.sensors.models import Sensor
 
 
 def test_add_then_get_returns_the_sensor(session: Session) -> None:

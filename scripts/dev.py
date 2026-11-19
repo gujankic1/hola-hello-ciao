@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.config import get_settings
 from hola_hello_ciao.core.db import create_db_engine
-from hola_hello_ciao.sensors.models import Sensor
+from hola_hello_ciao.features.sensors.models import Sensor
 
 ROOT = Path(__file__).resolve().parent.parent
 

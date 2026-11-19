@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.config import get_settings
 from hola_hello_ciao.core.db import create_db_engine
-from hola_hello_ciao.readings.models import Reading
+from hola_hello_ciao.features.readings.models import Reading
 
 
 @pytest.fixture

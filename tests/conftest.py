@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.db import Base, create_db_engine
 from hola_hello_ciao.core.deps import get_session
+from hola_hello_ciao.features.readings.models import Reading
+from hola_hello_ciao.features.sensors.models import Sensor
+from hola_hello_ciao.features.shared.metrics import Metric
 from hola_hello_ciao.main import create_app
-from hola_hello_ciao.readings.metrics import Metric
-from hola_hello_ciao.readings.models import Reading
-from hola_hello_ciao.sensors.models import Sensor
 
 
 @pytest.fixture

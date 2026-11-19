@@ -6,9 +6,9 @@ from seed import DATASETS, DatasetSpec, floor_to, generate_readings, seed
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from hola_hello_ciao.readings.metrics import Metric
-from hola_hello_ciao.readings.models import Reading
-from hola_hello_ciao.sensors.models import Sensor
+from hola_hello_ciao.features.readings.models import Reading
+from hola_hello_ciao.features.sensors.models import Sensor
+from hola_hello_ciao.features.shared.metrics import Metric
 
 END = datetime(2026, 11, 18, 12, 0)
 SPEC = DatasetSpec(sensors=2, interval=timedelta(minutes=30), window=timedelta(days=2))

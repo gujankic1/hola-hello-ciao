@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
-from hola_hello_ciao.sensors.models import Sensor
+from hola_hello_ciao.features.sensors.models import Sensor
 
 URL = "/api/v1/sensors"
 

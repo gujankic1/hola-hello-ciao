@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, NonCallableMagicMock, create_autospec
 import pytest
 
 from hola_hello_ciao.core.errors import NotFoundError
-from hola_hello_ciao.readings.metrics import Metric
-from hola_hello_ciao.statistics import repository, service
-from hola_hello_ciao.statistics.repository import Aggregate
-from hola_hello_ciao.statistics.schemas import Stat, StatisticsQuery
+from hola_hello_ciao.features.shared.metrics import Metric
+from hola_hello_ciao.features.statistics import repository, service
+from hola_hello_ciao.features.statistics.repository import Aggregate
+from hola_hello_ciao.features.statistics.schemas import Stat, StatisticsQuery
 
 T0 = datetime(2026, 11, 1, tzinfo=UTC)
 T1 = T0 + timedelta(days=2)

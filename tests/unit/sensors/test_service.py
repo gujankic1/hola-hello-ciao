@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, NonCallableMagicMock, create_autospec
 import pytest
 
 from hola_hello_ciao.core.errors import NotFoundError
-from hola_hello_ciao.sensors import repository, service
-from hola_hello_ciao.sensors.schemas import SensorCreate, SensorRead
+from hola_hello_ciao.features.sensors import repository, service
+from hola_hello_ciao.features.sensors.schemas import SensorCreate, SensorRead
 
 
 @pytest.fixture

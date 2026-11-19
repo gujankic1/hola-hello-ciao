@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
 from hola_hello_ciao.core.deps import SessionDep
-from hola_hello_ciao.statistics import service
-from hola_hello_ciao.statistics.schemas import StatisticsQuery, StatisticsResponse
+from hola_hello_ciao.features.statistics import service
+from hola_hello_ciao.features.statistics.schemas import StatisticsQuery, StatisticsResponse
 
 router = APIRouter(prefix="/readings/aggregate", tags=["statistics"])
 

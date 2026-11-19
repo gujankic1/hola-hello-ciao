@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from hola_hello_ciao.sensors.models import Sensor
+from hola_hello_ciao.features.sensors.models import Sensor
 
 URL = "/api/v1/sensors"
 

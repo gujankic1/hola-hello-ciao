@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from hola_hello_ciao.readings.metrics import Metric
+from hola_hello_ciao.features.shared.metrics import Metric
 from tests.conftest import AddReading
 
 URL = "/api/v1/readings/aggregate"

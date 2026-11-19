@@ -5,10 +5,10 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from hola_hello_ciao.core.errors import StorageError
-from hola_hello_ciao.readings.metrics import Metric
-from hola_hello_ciao.readings.models import Reading
-from hola_hello_ciao.sensors.models import Sensor
-from hola_hello_ciao.statistics import repository
+from hola_hello_ciao.features.readings.models import Reading
+from hola_hello_ciao.features.sensors.models import Sensor
+from hola_hello_ciao.features.shared.metrics import Metric
+from hola_hello_ciao.features.statistics import repository
 from tests.conftest import AddReading
 
 START = datetime(2026, 11, 1)

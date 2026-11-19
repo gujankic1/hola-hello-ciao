@@ -70,7 +70,7 @@ Only create directories when there is something to put in them.
 - **Sync endpoints:** use `def`, not `async def`, with the sync SQLite driver. Never run blocking calls inside `async def`.
 - **App setup:** app factory in `main.py`, `lifespan` for startup/shutdown (not `on_event`), one `APIRouter` per feature, version prefix `/api/v1`, a `/health` endpoint.
 - **Schemas:** separate Pydantic models for input and output; set `response_model` and explicit status codes.
-- **Errors:** raise domain exceptions mapped by exception handlers in `core/errors.py`, with one consistent error shape. Repositories wrap DB calls in `storage_errors(session, "<specific message>")` (rollback + `StorageError`); the global `SQLAlchemyError` handler is only a fallback with a generic message; a catch-all `Exception` handler returns a generic 500 in the same shape.
+- **Errors:** raise domain exceptions mapped by exception handlers in `core/errors.py`, with one consistent error shape. Repositories wrap DB calls in `storage_errors(session, "<specific message>")` (rollback + `StorageError`); the global `SQLAlchemyError` handler is only a fallback with a generic message; a catch-all `Exception` handler returns a generic 500 in the same shape. Routes declare the error statuses they can return with `responses=error_responses(...)` (500 on the router), so OpenAPI shows `ErrorResponse`.
 - **Run with a single worker** (SQLite single writer).
 
 ## Conventions

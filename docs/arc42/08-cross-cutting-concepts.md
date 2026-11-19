@@ -28,7 +28,7 @@ One ingest call is all-or-nothing: one bad metric rejects the call, and all metr
 
 ## Errors
 
-One shape for every error the API produces: `{"error": {"code", "message", "details"?}}` (`core/errors.py`).
+One shape for every error the API produces: `{"error": {"code", "message", "details"?}}`, defined by the `ErrorResponse` model in `core/errors.py`, which also builds every error body. Exception handlers are invisible to OpenAPI, so each route declares the error statuses it can return with `responses=error_responses(...)`, and each router declares 500; declaring 422 also replaces FastAPI's default `HTTPValidationError`, a shape this API never returns.
 
 | Code | Status | Raised by |
 |---|---|---|

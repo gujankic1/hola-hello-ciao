@@ -1,9 +1,16 @@
+from typing import Literal
+
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 from hola_hello_ciao.core.errors import register_error_handlers
 from hola_hello_ciao.features.readings.router import router as readings_router
 from hola_hello_ciao.features.sensors.router import router as sensors_router
 from hola_hello_ciao.features.statistics.router import router as statistics_router
+
+
+class HealthStatus(BaseModel):
+    status: Literal["ok"]
 
 
 def create_app() -> FastAPI:
@@ -13,9 +20,9 @@ def create_app() -> FastAPI:
     app.include_router(readings_router, prefix="/api/v1")
     app.include_router(statistics_router, prefix="/api/v1")
 
-    @app.get("/health", tags=["meta"])
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    @app.get("/health", tags=["meta"], status_code=200, response_model=HealthStatus)
+    def health() -> HealthStatus:
+        return HealthStatus(status="ok")
 
     return app
 

@@ -8,17 +8,17 @@ router = APIRouter(prefix="/sensors", tags=["sensors"], responses=error_response
 
 
 @router.post("", status_code=201, response_model=SensorRead, responses=error_responses(422))
-def create_sensor(new_sensor: SensorCreate, service: SensorServiceDep) -> SensorRead:
-    return service.create_sensor(new_sensor)
+def create_sensor(new_sensor: SensorCreate, sensor_service: SensorServiceDep) -> SensorRead:
+    return sensor_service.create_sensor(new_sensor)
 
 
 @router.get("", status_code=200, response_model=list[SensorRead])
-def list_sensors(service: SensorServiceDep) -> list[SensorRead]:
-    return service.list_sensors()
+def list_sensors(sensor_service: SensorServiceDep) -> list[SensorRead]:
+    return sensor_service.list_sensors()
 
 
 @router.get(
     "/{sensor_id}", status_code=200, response_model=SensorRead, responses=error_responses(404, 422)
 )
-def get_sensor(sensor_id: SensorId, service: SensorServiceDep) -> SensorRead:
-    return service.get_sensor(sensor_id)
+def get_sensor(sensor_id: SensorId, sensor_service: SensorServiceDep) -> SensorRead:
+    return sensor_service.get_sensor(sensor_id)

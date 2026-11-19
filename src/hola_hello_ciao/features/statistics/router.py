@@ -12,5 +12,7 @@ router = APIRouter(
 @router.post(
     "", status_code=200, response_model=StatisticsResponse, responses=error_responses(404, 422)
 )
-def query_statistics(query: StatisticsQuery, service: StatisticsServiceDep) -> StatisticsResponse:
-    return service.compute_statistics(query)
+def query_statistics(
+    query: StatisticsQuery, statistics_service: StatisticsServiceDep
+) -> StatisticsResponse:
+    return statistics_service.compute_statistics(query)

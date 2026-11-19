@@ -14,6 +14,6 @@ router = APIRouter(
     "", status_code=201, response_model=ReadingCreated, responses=error_responses(404, 409, 422)
 )
 def create_reading(
-    sensor_id: SensorId, reading: ReadingCreate, service: ReadingServiceDep
+    sensor_id: SensorId, reading: ReadingCreate, reading_service: ReadingServiceDep
 ) -> ReadingCreated:
-    return service.ingest_reading(sensor_id, reading)
+    return reading_service.ingest_reading(sensor_id, reading)

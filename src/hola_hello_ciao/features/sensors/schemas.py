@@ -9,7 +9,9 @@ SensorId = Annotated[int, Field(ge=1, le=MAX_SENSOR_ID)]
 
 
 class SensorCreate(BaseModel):
-    model_config = ConfigDict(json_schema_extra={"examples": [{"name": "roof-station"}]})
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra={"examples": [{"name": "roof-station"}]}
+    )
 
     name: str | None = None
 

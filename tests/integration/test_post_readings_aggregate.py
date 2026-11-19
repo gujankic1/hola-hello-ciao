@@ -75,6 +75,8 @@ def test_unknown_sensor_returns_404(client: TestClient) -> None:
         {"metrics": [{"name": "bogus", "stat": "avg"}]},
         {"metrics": [{"name": "temperature", "stat": "avg"}], "sensor_ids": []},
         {"metrics": [{"name": "temperature", "stat": "avg"}], "sensor_ids": [1, 1]},
+        # Unknown field: a typo must not silently widen the query to all sensors.
+        {"metrics": [{"name": "temperature", "stat": "avg"}], "sensor_id": [1]},
         {"metrics": [{"name": "temperature", "stat": "avg"}], "from": "2026-11-01T00:00:00Z"},
         {
             "metrics": [{"name": "temperature", "stat": "avg"}],

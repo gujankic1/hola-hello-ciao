@@ -24,6 +24,8 @@ class Stat(StrEnum):
 
 
 class MetricStat(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: Metric
     stat: Stat
 
@@ -64,7 +66,7 @@ class StatisticsQuery(BaseModel):
     # Window rules: ADR-004. Docstrings here end up in OpenAPI.
 
     model_config = ConfigDict(
-        populate_by_name=True, json_schema_extra={"examples": [_QUERY_EXAMPLE]}
+        extra="forbid", populate_by_name=True, json_schema_extra={"examples": [_QUERY_EXAMPLE]}
     )
 
     sensor_ids: list[SensorId] | None = Field(default=None, min_length=1, max_length=MAX_SENSOR_IDS)

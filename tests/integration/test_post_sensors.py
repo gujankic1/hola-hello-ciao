@@ -36,7 +36,10 @@ def test_sensor_ids_are_distinct(client: TestClient) -> None:
     assert first != second
 
 
-@pytest.mark.parametrize("payload", [{"name": "   "}, {"name": 5}])
+@pytest.mark.parametrize(
+    "payload",
+    [{"name": "   "}, {"name": 5}, {"nmae": "roof-station"}],  # last: unknown field (typo)
+)
 def test_invalid_sensor_is_rejected(
     client: TestClient, engine: Engine, payload: dict[str, object]
 ) -> None:

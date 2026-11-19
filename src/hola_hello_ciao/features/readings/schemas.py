@@ -16,9 +16,10 @@ _RECORDED_AT_EXAMPLE = "2026-11-17T10:00:00Z"
 
 class ReadingCreate(BaseModel):
     model_config = ConfigDict(
+        extra="forbid",
         json_schema_extra={
             "examples": [{"metrics": _METRICS_EXAMPLE, "recorded_at": _RECORDED_AT_EXAMPLE}]
-        }
+        },
     )
 
     metrics: Annotated[dict[Metric, MetricValue], Field(min_length=1)]

@@ -15,6 +15,7 @@ All input is validated at the HTTP boundary by Pydantic schemas; services can as
 
 | Input | Rule | Response |
 |---|---|---|
+| Unknown fields | Rejected on every input model (`extra="forbid"`), so a typo such as `sensor_id` for `sensor_ids` cannot silently widen a query to all sensors | 422 |
 | Metric names, statistics | Closed enums (`Metric`, `Stat`; ADR-005) | 422 |
 | Metric values | Finite floats (no `NaN`/`Infinity`) | 422 |
 | `recorded_at` | Required; ISO 8601 or Unix time, no offset = UTC | 422 |

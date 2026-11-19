@@ -79,6 +79,7 @@ def test_invalid_sensor_id_is_rejected(client: TestClient, sensor_id: object) ->
         {"metrics": {"temperature": 1, "bogus": 2}, "recorded_at": TS},  # one bad key
         {"metrics": {"temperature": 1}},  # missing recorded_at
         {"metrics": {"temperature": 1}, "recorded_at": "yesterday"},
+        {"metrics": {"temperature": 1}, "recorded_at": TS, "unit": "C"},  # unknown field
     ],
 )
 def test_invalid_payload_is_rejected_and_nothing_stored(

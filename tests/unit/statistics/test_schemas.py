@@ -69,6 +69,8 @@ def test_naive_datetimes_are_treated_as_utc() -> None:
         {"metrics": METRICS, "sensor_ids": [0]},  # ids start at 1
         {"metrics": METRICS, "sensor_ids": [2**63]},  # beyond SQLite INTEGER
         {"metrics": METRICS, "sensor_ids": list(range(1, MAX_SENSOR_IDS + 2))},  # too many
+        {"metrics": METRICS, "sensor_id": [1]},  # unknown field
+        {"metrics": [{"name": "temperature", "stat": "avg", "unit": "C"}]},  # unknown field
     ],
 )
 def test_invalid_queries_are_rejected(payload: dict[str, object]) -> None:

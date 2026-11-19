@@ -44,7 +44,7 @@ Each ADR records a significant decision and why it was made. When the reasoning 
 
 - Logic is testable without HTTP, and persistence can change independently.
 - Feature folders keep related code together.
-- `Depends` is built in and lets tests swap in a temporary database without mocks. Injecting services would add a class and a provider per feature for no gain: they have one dependency, no state and one implementation.
+- `Depends` is built in and lets integration tests swap in a temporary database. Service tests patch the module-level repository instead (ADR-007). Injecting services would add a class and a provider per feature for no gain: they have one dependency, no state and one implementation.
 - Blocking SQLite calls inside `async def` would stall the event loop. Async would not help with SQLite anyway: there is still one writer, and async SQLite drivers use a thread.
 
 **Consequences**
@@ -142,3 +142,25 @@ Each ADR records a significant decision and why it was made. When the reasoning 
 - **`[project.scripts]` entry point:** a short command name, but the code would have to live in the application package.
 - **A task runner (make, just, poethepoet):** an extra tool, and seeding logic still needs a home.
 - **Seeding through the API:** exercises validation, but is far too slow for the large dataset.
+
+## ADR-007: Service unit tests mock their collaborators
+
+*Accepted, 2026-11-19*
+
+**Context.** Service tests ran through the real repositories on a temporary SQLite file, so a query bug also failed them.
+
+**Decision.** Service tests replace the feature's `repository` module and other features' service functions with `create_autospec` mocks via `monkeypatch`, and pass a stand-in `fake_session`. Repository and integration tests keep the real database.
+
+**Reasons**
+
+- A service test fails only for the service's own logic, and any repository result is one line to set up.
+- Autospec fails a test when a mocked function is called with the wrong arguments or no longer exists.
+- The database is the repository's boundary; mocking the `Session` would not test the SQL.
+- No new dependency.
+
+**Consequences.** Only integration tests check that the layers fit together. Changing a repository signature means updating service tests. Routers stay thin and get no unit tests.
+
+**Alternatives**
+
+- **Real database at every level:** catches wiring bugs, but the tests are not unit tests.
+- **`pytest-mock`:** an extra dependency for what `monkeypatch` and `create_autospec` already do.

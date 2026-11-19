@@ -65,7 +65,7 @@ Only create directories when there is something to put in them.
 
 - **Layers, one-way:** `router` → `service` → `repository`. Routers handle HTTP only; services hold business logic and never import FastAPI; only repositories touch SQL/ORM.
 - **Feature folders:** each feature has `router.py`, `schemas.py`, `service.py` and `repository.py`; services call repositories, never the `Session` API directly. Shared infra lives in `core/` (`config`, `db`, `deps`, `errors`, `types`).
-- **Dependency injection with `Depends`** (`Annotated[X, Depends(get_x)]`) for the DB session (and settings when an endpoint needs them); services are plain functions taking the session. No other DI framework. Tests override via `app.dependency_overrides` with a temporary SQLite file.
+- **Dependency injection with `Depends`** (`Annotated[X, Depends(get_x)]`) for the DB session (and settings when an endpoint needs them); services are plain functions taking the session. No other DI framework. Integration tests override via `app.dependency_overrides` with a temporary SQLite file.
 - **Sync endpoints:** use `def`, not `async def`, with the sync SQLite driver. Never run blocking calls inside `async def`.
 - **App setup:** app factory in `main.py`, `lifespan` for startup/shutdown (not `on_event`), one `APIRouter` per feature, version prefix `/api/v1`, a `/health` endpoint.
 - **Schemas:** separate Pydantic models for input and output; set `response_model` and explicit status codes.
@@ -76,6 +76,7 @@ Only create directories when there is something to put in them.
 
 - **Tests are sorted by level, then feature:**
   - `tests/unit/<feature>/test_<module>.py` mirrors `src/hola_hello_ciao/<feature>/` and tests services/repositories/schemas directly, without HTTP.
+  - Unit tests test one unit (ADR-007): service tests replace the feature's `repository` module and other features' service functions with `create_autospec` mocks via `monkeypatch`, and pass `fake_session` (`tests/unit/conftest.py`). Repository tests use the real temp SQLite file. Integration tests use no mocks. Routers get no unit tests.
   - `tests/integration/test_<method>_<route>.py` has one file per route, named after it (`/sensors/{sensor_id}/readings` -> `test_post_sensors_readings.py`), and calls the app through `TestClient`.
   - Shared fixtures (temp SQLite file, `session`, `client`, `sensor_id`) live in `tests/conftest.py`. Every test directory has an `__init__.py` (same file names recur across features).
 - Type-hint all public functions. Routers stay thin; logic lives in services that are testable without HTTP.

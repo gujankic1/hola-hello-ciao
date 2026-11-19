@@ -18,4 +18,4 @@ Dependencies point one way only (api → service → repository).
 
 ## Dependency injection
 
-Endpoints receive a request-scoped `Session` via `Depends(get_session)`; `get_session` uses the cached engine built from `get_settings()`. Services are plain module functions that take the session, not injected objects (ADR-002). Tests replace `get_session` via `app.dependency_overrides` with a temporary SQLite file. There is no `lifespan` yet, because nothing needs startup or shutdown work.
+Endpoints receive a request-scoped `Session` via `Depends(get_session)`; `get_session` uses the cached engine built from `get_settings()`. Services are plain module functions that take the session, not injected objects (ADR-002). Integration tests replace `get_session` via `app.dependency_overrides` with a temporary SQLite file; service unit tests mock the repository and other services instead (ADR-007). There is no `lifespan` yet, because nothing needs startup or shutdown work.

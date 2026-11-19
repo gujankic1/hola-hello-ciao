@@ -37,11 +37,9 @@ Do not add dependencies outside this list without an ADR or explicit approval.
 
 ## Target infrastructure
 
-> Confirmed 2026-11-17. Provider/host still open; update here and in arc42 chapter 7 when chosen.
-
 - **Single process:** one Uvicorn process; no orchestrator.
 - **One host** (small VM or PaaS with persistent volume) — SQLite requires local, durable disk.
-- SQLite file lives on durable local disk (`DATABASE_PATH`), backed up by copying the file (`sqlite3 .backup`).
+- SQLite file lives on durable local disk (`DATABASE_PATH`). Backups are out of scope for the PoC (arc42 chapter 11).
 - Config via environment variables only (12-factor). `.env` for local dev, never committed; keep `.env.example` current.
 - **Scaling constraint:** one writer instance. Horizontal scaling means revisiting ADR-001.
 
@@ -61,7 +59,7 @@ Do not add dependencies outside this list without an ADR or explicit approval.
 └── pyproject.toml
 ```
 
-Only create directories when there is something to put in them. Full layout: [arc42 chapter 5](docs/arc42/05-building-blocks.md).
+Only create directories when there is something to put in them.
 
 ## Architecture rules (ADR-002)
 

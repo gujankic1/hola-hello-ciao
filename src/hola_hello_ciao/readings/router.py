@@ -1,16 +1,11 @@
-from typing import Annotated
+from fastapi import APIRouter
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-
-from hola_hello_ciao.core.deps import get_session
+from hola_hello_ciao.core.deps import SessionDep
 from hola_hello_ciao.readings import service
 from hola_hello_ciao.readings.schemas import ReadingCreate, ReadingCreated
 from hola_hello_ciao.sensors.schemas import SensorId
 
 router = APIRouter(prefix="/sensors/{sensor_id}/readings", tags=["readings"])
-
-SessionDep = Annotated[Session, Depends(get_session)]
 
 
 @router.post("", status_code=201, response_model=ReadingCreated)

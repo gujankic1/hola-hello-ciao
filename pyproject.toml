@@ -33,6 +33,8 @@ entrypoint = "hola_hello_ciao.main:app"
 testpaths = ["tests"]
 # Dev tooling (ADR-006) is not packaged; make it importable for tests/scripts/.
 pythonpath = ["scripts"]
+# Warnings (e.g. an unclosed SQLite connection) fail the run instead of scrolling by.
+filterwarnings = ["error"]
 
 [tool.ruff]
 line-length = 100

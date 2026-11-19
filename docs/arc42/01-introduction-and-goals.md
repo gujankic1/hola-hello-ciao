@@ -6,8 +6,6 @@ A service that receives weather readings from sensors (temperature, humidity, wi
 
 ## Requirements
 
-Source: the "Weather Sensor Metrics API - Take-home brief" (Claude Doc owned by the project owner).
-
 | # | Requirement | Status |
 |---|---|---|
 | F1 | Receive new metric values for a sensor through an API call (sensors must be registered first) | done |

@@ -8,10 +8,6 @@ class Settings(BaseSettings):
 
     database_path: str = "./data/app.db"
 
-    @property
-    def database_url(self) -> str:
-        return f"sqlite:///{self.database_path}"
-
 
 @lru_cache
 def get_settings() -> Settings:

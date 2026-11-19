@@ -43,10 +43,10 @@ Routing errors (unknown path or method) keep FastAPI's default `{"detail": ...}`
 
 - One SQLAlchemy `Session` per request (`core/deps.py`), injected with `Depends`; services pass it to repositories.
 - Repositories own the transaction: they commit on success, and `storage_errors` rolls back on failure.
-- Every connection runs two `PRAGMA`s (SQLite's settings command) on connect (`core/db.py`):
-  - `foreign_keys=ON`: SQLite ignores declared foreign keys unless this is on, and it is per connection. It makes the database reject a reading whose `sensor_id` has no sensor, backing up the service's 404 check.
-  - `journal_mode=WAL`: writes are appended to a `-wal` log and checkpointed into the main file later, so readers (statistics queries) don't block on the writer (ingest) and vice versa. There is still one writer at a time. The mode persists in the file. The `-wal`/`-shm` files belong to the database, which is why backups use `sqlite3 .backup` rather than copying the `.db` file.
-- Endpoints are sync (`def`) and run in FastAPI's threadpool; one Uvicorn worker is the single SQLite writer (ADR-001, ADR-002).
+- Every connection sets two `PRAGMA`s (`core/db.py`):
+  - `foreign_keys=ON` (off by default in SQLite, per connection): the database rejects a reading for an unknown sensor, backing up the service's 404 check.
+  - `journal_mode=WAL`: readers see a snapshot and never block on the writer, or the other way round; there is still one writer at a time. The `-wal`/`-shm` files are part of the database, so a backup must use `sqlite3 .backup`, not a file copy.
+- Endpoints are sync (`def`) and run in parallel in FastAPI's pool of 40 threads; SQLite releases the GIL while it works. One Uvicorn worker is the single writer: a second write waits up to 5 s rather than failing, and an ingest write takes well under 1 ms (ADR-001, ADR-002). Limits: chapter 11, R2.
 - The schema is owned by Alembic migrations; a test fails if models and migrations drift (`tests/unit/core/test_migrations.py`).
 
 ## Configuration

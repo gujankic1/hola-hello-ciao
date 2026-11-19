@@ -1,220 +1,144 @@
 # 9. Architecture decisions
 
-Append-only log. To change a decision, add a new ADR that supersedes the old one.
+Each ADR records a significant decision and why it was made. When the reasoning changes, the ADR is updated in place.
 
 ## ADR-001: FastAPI with SQLite
 
-- **Status:** accepted
-- **Date:** 2026-11-17
+*Accepted, 2026-11-17*
 
-### Context
+**Context.** A small API that is quick to build, easy to run and easy to maintain, with no need for multi-node scale or heavy concurrent writes.
 
-We need a small web API that is quick to build, easy to operate and easy to maintain, with no requirement yet for multi-node scale or heavy concurrent writes.
+**Decision.** Python + FastAPI for the API, SQLite as the datastore.
 
-### Decision
+**Reasons**
 
-Use **Python + FastAPI** for the API and **SQLite** as the datastore.
+- FastAPI derives validation and OpenAPI docs from type hints, which gives a lot of correctness for little code; the owner already knows it well.
+- The data is relational and integrity matters (foreign keys, unique keys, transactions), and aggregate queries are natural in SQL.
+- SQLite has zero operations: no server to run or secure, one file, full SQL, fast for read-heavy, moderate-write workloads.
 
-### Reasons
+**Consequences**
 
-- **FastAPI:** type-hint-driven validation (Pydantic) and automatic OpenAPI docs give a lot of correctness for little code; async-capable; large ecosystem and well-understood by AI tooling.
-- **Team experience:** the owner already has hands-on experience with FastAPI, which lowers risk and speeds up delivery.
-- **Relational over non-relational:** we expect structured, interrelated data where integrity matters (foreign keys, constraints, transactions) and queries we can't fully predict yet; SQL handles ad-hoc queries, joins and schema evolution (migrations) well. A document/key-value store would trade that for schema flexibility and horizontal scale, neither of which we need, and would push integrity checks into application code.
-- **SQLite as the relational engine:** zero-ops (no server to run, secure or pay for), a single file that is trivial to back up and copy, fast for read-heavy and moderate-write workloads, and full SQL.
-- **Together:** one process and one file keep deployment, local development and testing trivial, matching our top quality goal of simplicity.
+- One writer: one app instance on durable local disk, no horizontal scaling (chapter 11, R2).
+- If it is outgrown, move to PostgreSQL; SQLAlchemy and Alembic keep that path cheap.
 
-### Consequences
+**Alternatives**
 
-- Single writer: run one app instance on durable local disk; no horizontal scaling of writes.
-- Need WAL mode and foreign keys enabled on every connection.
-- If we outgrow it (multi-instance, high write concurrency), migrate to PostgreSQL. Using SQLAlchemy and Alembic keeps that path cheap.
+- **PostgreSQL:** more capable, but a server to operate for no current benefit.
+- **Document or key-value stores:** schema flexibility and horizontal scale we don't need, at the cost of integrity and joins.
+- **Flask / Django:** Flask lacks built-in validation; Django is heavier than a small API needs.
 
-### Alternatives considered
+## ADR-002: Layered, feature-based structure with sync endpoints
 
-- **PostgreSQL:** more capable but adds a server to operate; unjustified at this stage.
-- **Document / key-value stores (e.g. MongoDB, Redis):** flexible schemas and easy horizontal scaling, but weaker integrity guarantees and joins; our data is expected to be relational and scale is not a driver.
-- **Flask / Django:** Flask lacks built-in validation and typing; Django is heavier than needed for a small API.
+*Accepted, 2026-11-17*
 
-## ADR-002: Layered, feature-based structure with FastAPI dependency injection
+**Context.** HTTP, business logic and persistence should stay separate, small and testable.
 
-- **Status:** accepted
-- **Date:** 2026-11-17
+**Decision**
 
-### Context
+- Layers with one-way dependencies: `router` → `service` → `repository`. Services never import FastAPI; only repositories touch the ORM.
+- Code is organised by feature (`sensors`, `readings`, `statistics`), each with its own router, schemas, service and repository.
+- FastAPI `Depends` injects the DB session. Services are plain functions that take the session; they are not injected.
+- Endpoints are synchronous (`def`) with the synchronous SQLite driver.
 
-We need a code structure that keeps HTTP concerns, business logic and persistence separate, stays small, and is easy to test.
+**Reasons**
 
-### Decision
+- Logic is testable without HTTP, and persistence can change independently.
+- Feature folders keep related code together.
+- `Depends` is built in and lets tests swap in a temporary database without mocks. Injecting services would add a class and a provider per feature for no gain: they have one dependency, no state and one implementation.
+- Blocking SQLite calls inside `async def` would stall the event loop. Async would not help with SQLite anyway: there is still one writer, and async SQLite drivers use a thread.
 
-- **Layers, one-way dependencies:** `api` (router + schemas) → `service` (business logic) → `repository` (DB access). Services contain no FastAPI imports.
-- **Organised by feature**, not by layer: each feature folder holds its own `router.py`, `schemas.py`, `service.py`, `repository.py`.
-- **Dependency injection via FastAPI `Depends`** (no extra DI framework) for the DB session and settings. Services are plain module functions that take the session; they are not injected.
-- **Synchronous endpoints** (`def`, not `async def`) with the synchronous SQLite driver.
-- Every feature has a `repository`; services call it and never use the `Session` API directly (they only pass the session through).
-- **Error handling:** repositories translate database errors into a `StorageError` with an operation-specific message (`core.db.storage_errors`, which also rolls back). A global `SQLAlchemyError` handler remains as a fallback with a generic message.
+**Consequences**
 
-### Reasons
+- A few small files per feature.
+- Revisit service injection if a service needs two or more collaborators besides the session (e.g. a message broker and a cache), and async if the database moves to PostgreSQL.
 
-- Separation keeps logic testable without HTTP and lets persistence change independently.
-- Feature folders keep related code together and scale better than one folder per layer.
-- `Depends` is built in and enables test overrides (`app.dependency_overrides`) with a temporary SQLite file, no mocking library needed.
-- Services have a single dependency (the session), no state and no alternative implementations, and routes are not tested in isolation, so injecting services would add a class and provider per feature for no benefit.
-- Blocking SQLite calls inside `async def` would stall the event loop; sync endpoints run in FastAPI's threadpool and are correct and simple.
+## ADR-003: One row per metric value, idempotent by sensor, metric and time
 
-### Consequences
+*Accepted, 2026-11-17*
 
-- Slight boilerplate per feature (several small files).
-- Sync-only data access; if async is ever needed, revisit with a new ADR (e.g. async driver).
-- Discipline needed to keep routers thin and keep FastAPI types out of services.
-- Revisit service injection only if a service needs two or more collaborators besides the session (e.g. a message broker and a cache); a `Depends` provider then keeps routes to one `service` parameter.
+**Context.** Sensors report several metrics at once, and queries aggregate chosen metrics per sensor over a time range. Sensors on flaky networks retry.
 
-### Concurrent ingest and queries
+**Decision**
 
-Synchronous does not mean one request at a time:
+- Store one row per metric value: `readings(sensor_id, metric, value, recorded_at)`, with `(sensor_id, metric, recorded_at)` unique. One ingest call writes its rows in one transaction.
+- `recorded_at` is required and identifies a reading. Re-sending a stored value succeeds without a duplicate; a different value for a stored reading returns 409 and stores nothing from that call.
 
-- **Requests run in parallel.** FastAPI runs each `def` endpoint in a pool of 40 threads, and SQLite releases Python's lock (the GIL) while it works.
-- **Queries never wait for ingest.** In WAL mode, readers see a snapshot while a write is in progress, and the other way round.
-- **Writes queue, but briefly.** SQLite allows one writer at a time. A second write waits (up to 5 s) rather than failing, and an ingest write takes well under a millisecond.
+**Reasons**
 
-Async would not help with SQLite: there is still one writer, and async SQLite drivers run in a thread anyway. It pays off with PostgreSQL and an async driver. The limits of this setup and their fixes are in chapter 11 (R7).
+- Adding a metric needs no schema change, and aggregation is one generic `GROUP BY` query. The unique index also serves that query.
+- Without a natural key, a retry would be stored twice and skew `sum`, `avg` and `count`. The server's receive time differs between retries, so the sensor's own timestamp is the key.
+- 409 rather than overwriting: a changed value for the same instant is more likely a bug than a correction.
 
-## ADR-003: Long-format `readings` table (one row per metric value)
+**Consequences**
 
-- **Status:** accepted
-- **Date:** 2026-11-17
+- More rows than a wide table; fine at this scale.
+- Sensors must send `recorded_at`.
 
-### Context
+## ADR-004: REST resource design
 
-Sensors report different metrics (temperature, humidity, wind speed, ...) and new ones may appear. Queries aggregate chosen metrics per sensor over a time range.
+*Accepted, 2026-11-17*
 
-### Decision
+**Context.** The brief needs ingest per sensor, and aggregate queries over one, several or all sensors, several metrics, a statistic per metric and a 1-day to 1-month window (default: last 24 hours).
 
-Store one row per metric value: `readings(id, sensor_id, metric, value, recorded_at)`, where `sensor_id` references `sensors(id)` (see ADR-004), with `(sensor_id, metric, recorded_at)` unique. One ingest call with several metrics writes several rows in one transaction. Timestamps are stored as naive UTC.
+**Decision**
 
-`recorded_at` is required and identifies a reading, which makes ingest idempotent: values already stored with the same value are skipped (a retry returns 201 again), and a different value for an existing key returns 409 and stores nothing from that call.
+| Endpoint (under `/api/v1`) | Purpose |
+|---|---|
+| `POST /sensors`, `GET /sensors`, `GET /sensors/{id}` | Register, list and fetch sensors |
+| `POST /sensors/{id}/readings` | Ingest metric values for one sensor |
+| `POST /readings/aggregate` | Aggregate query |
 
-### Reasons
+- **Sensors are registered first;** ingest for an unknown sensor returns 404. The sensor ID is in the path, so path and body cannot disagree.
+- **The aggregate query is collection-level,** because one query spans many sensors. It uses `POST` with a typed body, because sensors, per-metric statistics and a window are structured input. The path names the operation: `POST` on a noun such as `/readings/statistics` reads as "create statistics".
+- **Results are per sensor and metric,** never pooled across sensors. The window is `[from, to)`; "one month" means 31 days. A requested sensor without readings gets `null`; when querying all sensors, only sensors with data appear.
+- **No per-reading endpoint:** one ingest call becomes several rows (ADR-003), so there is no single reading entity worth an ID.
 
-- New metrics need no schema change or migration.
-- Aggregation is one generic query (`WHERE` sensor/metric/time, `GROUP BY` metric with `MIN/MAX/SUM/AVG`).
-- The unique index serves the expected query shape.
-- Sensors retry on flaky networks; without a natural key, a retry would be stored twice and skew `sum`, `avg` and `count`. The server's receive time differs between retries, so the sensor's own timestamp is the key.
-- 409 instead of overwriting: a changed value for the same instant is more likely a bug than a correction, and should not silently replace good data.
+**Alternatives for the query**
 
-### Consequences
+- **`GET /statistics?sensor_id=...&metric=...&stat=...`:** cacheable, but repeated list parameters and a different statistic per metric get awkward.
+- **`GET /sensors/{id}/statistics` plus a global variant:** two endpoints for one capability.
+- **`POST /statistics/queries` (query as a resource):** over-engineered for an immediate result.
 
-- More rows than a wide table (one per metric per reading); acceptable at PoC scale.
-- Sensors must send `recorded_at`; there is no server-time default. Two readings of one metric at the same microsecond cannot both be stored.
-- No per-metric typing, units or range checks yet; add a metric registry if needed.
-- Metric names were free text originally; superseded by ADR-005 (closed enum).
+**Consequences**
 
-## ADR-004: REST resource design (sensor-scoped ingest, collection-level statistics)
+- A read-only `POST` is not cacheable; an accepted, common trade-off (e.g. Elasticsearch `_search`).
+- One ingest call reports for one sensor only.
 
-- **Status:** accepted
-- **Date:** 2026-11-17 (query path renamed from `/readings/statistics` to `/readings/aggregate` on 2026-11-18)
+## ADR-005: Closed set of metrics
 
-### Context
+*Accepted, 2026-11-17*
 
-The brief needs (1) ingest of new metric values per sensor and (2) aggregate queries across one, several or all sensors, several metrics, a statistic per metric (min/max/sum/avg) and a date range (1 day to 1 month, default last 24 h). We want a resource-oriented REST API that can grow gradually.
+**Context.** Free-text metric names let typos and junk keys from a faulty sensor become metrics that queries then have to cope with.
 
-### Decision
+**Decision.** Metric names are a closed enum (`temperature`, `humidity`, `wind_speed`, `pressure`, `rainfall`), shared by ingest and the aggregate query. Unknown names return 422. The column stays a plain string.
 
-Resources and endpoints (all under `/api/v1`):
+**Reasons.** Bad input is rejected at the boundary, the allowed values appear in the API docs, and there is no extra table or configuration.
 
-| Endpoint | Purpose | Status |
-|---|---|---|
-| `POST /sensors` | Register a sensor | done |
-| `POST /sensors/{sensor_id}/readings` | Ingest metric values for a sensor; 404 if the sensor does not exist | done |
-| `GET /sensors`, `GET /sensors/{sensor_id}` | List (by id, no paging) / fetch sensors; 404 for an unknown id | done |
-| `GET /sensors/{sensor_id}/readings` | Raw readings of one sensor (time filter, paging) | optional, later |
-| `POST /readings/aggregate` | Aggregate query (body: sensors, metrics + statistic, from/to) | done |
-| `GET /health` | Liveness | done |
+**Consequences.** Adding a metric is a code change and a deploy. There are no per-metric units or value ranges (chapter 11, R4).
 
-Rules:
+**Alternatives**
 
-- **No implicit sensor creation.** Sensors must be registered first; ingest for an unknown sensor returns 404 (`not_found`).
-- **The sensor ID is in the path** for ingest, not in the body, so path and body can never disagree and ID validation happens before the body is read.
-- **Statistics live at collection level** (`/readings/aggregate`), because a query spans many sensors; a per-sensor path would only cover one case and force a second endpoint.
-- **The query path is an action, not a noun.** `POST` on a noun reads as "create one" (like ingest, `POST .../readings`), so `POST /readings/statistics` suggested submitting statistics. `aggregate` names the operation and implies summary values come back (as in MongoDB `aggregate`, Elasticsearch aggregations), and leaves `query`/`search` free for a later raw-readings endpoint. The code feature stays `statistics/`.
-- **Statistics use POST with a body.** Sensors, per-metric statistics and a range are structured input; a typed body validates cleanly. Shape: `{"sensor_ids": [1, 2] (omitted = all), "metrics": [{"name": "temperature", "stat": "avg"}], "from": ..., "to": ...}`; default window last 24 h; range must be between 1 day and 1 month.
-- **Statistics semantics.** `metrics[].name` and `stat` (`min|max|sum|avg`) are enums. Window: neither `from` nor `to` = last 24 h ending now; only `to` = the 24 h before it; only `from` = 422; both = length from 1 day to 31 days inclusive ("one month" = 31 days). Naive datetimes are UTC; the window is `[from, to)`; the response echoes the resolved `from`/`to`. Results are per sensor and metric (`sensor_id, metric, stat, value, count`), never pooled across sensors. `value` is `null` for an explicitly requested sensor with no readings in the window; with all sensors only sensors that have data appear. Unknown `sensor_ids` return 404 naming every missing ID (checked in one query); empty lists, duplicate sensor IDs and duplicate metric/stat pairs return 422.
-- **No `GET /sensors/{id}/readings/{reading_id}`.** With ADR-003 one ingest call becomes several rows, so there is no single "reading" entity worth an ID, and the brief has no need to fetch, update or delete one value. If ever needed, storage would split into `readings` (event) and `reading_values` (metric/value).
+- **Allow-list in configuration:** no deploy for new metrics, but invisible in the API docs.
+- **Metric registry table:** allows units and ranges, but needs management endpoints; too much for a PoC.
 
-### Alternatives considered for the statistics query
+## ADR-006: Dev tooling in `scripts/`, outside the package
 
-| | Shape | Why not chosen |
-|---|---|---|
-| B | `GET /statistics?sensor_id=1&metric=temperature&stat=avg&...` | Pure REST and cacheable, but repeated list params and a different statistic per metric get awkward |
-| C | `GET /sensors/{id}/statistics?...` plus a global variant | Two endpoints for one capability; multi-sensor case still needs another |
-| D | `POST /statistics/queries` (query as a resource) | Over-engineered for a PoC; "create" semantics for an immediate result confuse readers |
-| E | `POST /readings/statistics` (original name) | Noun path with POST reads as "submit statistics" next to ingest |
-| F | `POST /readings/query` | Clear action, but suggests raw readings come back and takes the general name |
-| G | `POST /readings/statistics/query` | Clear but long; close in spirit to D |
-| H | `POST /readings/_search` or `/readings:query` | OpenSearch / Google AIP style; unusual in a small REST API |
+*Accepted, 2026-11-18*
 
-### Consequences
+**Context.** Trying the API meant starting from an empty database and hand-writing ingest calls. We want one-line start commands with sample data, without seeding code in the application.
 
-- POST for a read-only query is not cacheable and not self-evidently safe; accepted trade-off (common pattern, e.g. Elasticsearch `_search`).
-- A sensors table and `POST /sensors` are needed before ingest is usable.
-- One ingest call cannot report for several sensors (no batching across sensors).
+**Decision.** A root-level `scripts/` folder holds `dev.py` (`serve` and `seed` commands) and `seed.py` (datasets `small`, `medium`, `large`), run with `uv run scripts/dev.py`. Seeding bulk-inserts through the ORM models, not through services or the API.
 
-## ADR-005: Closed set of metrics (enum)
+**Reasons**
 
-- **Status:** accepted
-- **Date:** 2026-11-17
-- **Supersedes:** the free-text metric names consequence of ADR-003
+- Nothing under `src/` knows about seeding, and nothing extra ships.
+- No new dependency: `argparse`, Alembic's command API and `uvicorn.run`.
+- Bulk insert loads 2.16M rows in about 15 s; one API call per reading would take minutes.
 
-### Context
+**Consequences.** Seed data bypasses ingest validation; it is generated in the repo and trusted. Tests in `tests/scripts/` catch it if a model change breaks seeding.
 
-Ingest accepted any metric name, so typos or arbitrary keys from a misbehaving sensor created junk metrics that statistics queries would then have to cope with.
+**Alternatives**
 
-### Decision
-
-Metric names are a closed `Metric` enum in `readings/metrics.py`: `temperature`, `humidity`, `wind_speed`, `pressure`, `rainfall`. Ingest rejects unknown names with 422 (`validation_error`), and the statistics query uses the same enum. The column stays a plain string, so no migration is needed.
-
-### Reasons
-
-- Bad input is rejected at the boundary and the allowed values appear in the OpenAPI schema.
-- Simplest option: no extra table, endpoints or configuration.
-
-### Consequences
-
-- Adding a metric is a code change and a deploy.
-- Still no per-metric units or value-range checks.
-- Rows written before this ADR keep whatever names they have.
-
-### Alternatives considered
-
-- **Configurable allow-list (env var):** no deploy for new metrics, but validated at runtime and invisible in OpenAPI.
-- **Metric registry table:** enables units and ranges but needs a migration and management endpoints; overkill for the PoC.
-
-## ADR-006: Dev tooling (start commands, seed data) in `scripts/`, outside the package
-
-- **Status:** accepted
-- **Date:** 2026-11-18
-
-### Context
-
-Starting the app took three commands and began with an empty database, so trying the statistics query meant hand-writing ingest calls first. We want one-line start commands with optional seed data, without seeding code leaking into the application.
-
-### Decision
-
-Dev tooling lives in a root-level `scripts/` folder: `dev.py` (argparse; `serve` and `seed` subcommands) and `seed.py` (datasets `small`, `medium`, `large`). It runs with `uv run scripts/dev.py ...` in the project environment and is not part of the built wheel. `seed.py` writes through the ORM models with batched bulk inserts, not through services, repositories or the HTTP API. Seeding refuses a database that already has sensors; `--reset` deletes the file first.
-
-### Reasons
-
-- No file under `src/` knows about seeding, and nothing new ships.
-- No new dependency: stdlib `argparse`, Alembic's command API, `uvicorn.run`.
-- Bulk insert loads the large set (2.16M rows) in about 15 s; one ingest call per reading would take minutes.
-
-### Consequences
-
-- Commands are invoked by path rather than a short name.
-- Seed data bypasses ingest validation; it is trusted because it is generated in the same repo. The models are the contract: a schema change can break `seed.py`, which `tests/scripts/` catches.
-
-### Alternatives considered
-
-- **`[project.scripts]` entry point:** short `uv run hhc ...`, but the module would have to live in the application package.
-- **uv workspace package for tooling:** short name and kept apart, but a second package to maintain for a PoC.
-- **poethepoet / make / just:** npm-style tasks, but an extra dependency or tool, and seeding logic still needs a home.
-- **Seed via the HTTP API:** exercises validation, but far too slow for the large set.
+- **`[project.scripts]` entry point:** a short command name, but the code would have to live in the application package.
+- **A task runner (make, just, poethepoet):** an extra tool, and seeding logic still needs a home.
+- **Seeding through the API:** exercises validation, but is far too slow for the large dataset.

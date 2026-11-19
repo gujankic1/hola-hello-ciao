@@ -1,6 +1,8 @@
 from collections.abc import Iterator
 from functools import lru_cache
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
@@ -17,3 +19,6 @@ def get_session() -> Iterator[Session]:
     """One session per request."""
     with Session(get_engine()) as session:
         yield session
+
+
+SessionDep = Annotated[Session, Depends(get_session)]

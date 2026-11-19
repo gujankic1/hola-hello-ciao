@@ -34,9 +34,14 @@ def test_average_temperature_and_humidity_for_sensor_in_last_week(
     assert response.status_code == 200
     body = response.json()
     assert {"from", "to"} <= body.keys()
-    assert body["results"] == [
-        {"sensor_id": sensor_id, "metric": "temperature", "stat": "avg", "value": 20.0, "count": 3},
-        {"sensor_id": sensor_id, "metric": "humidity", "stat": "avg", "value": 50.0, "count": 3},
+    assert body["sensors"] == [
+        {
+            "sensor_id": sensor_id,
+            "results": [
+                {"metric": "temperature", "stat": "avg", "value": 20.0, "count": 3},
+                {"metric": "humidity", "stat": "avg", "value": 50.0, "count": 3},
+            ],
+        }
     ]
 
 
@@ -48,7 +53,9 @@ def test_defaults_to_all_sensors_and_last_24_hours(
     response = client.post(URL, json={"metrics": [{"name": "temperature", "stat": "max"}]})
 
     assert response.status_code == 200
-    assert [r["value"] for r in response.json()["results"]] == [5.0]
+    (sensor,) = response.json()["sensors"]
+    assert sensor["sensor_id"] == sensor_id
+    assert [r["value"] for r in sensor["results"]] == [5.0]
 
 
 def test_unknown_sensor_returns_404(client: TestClient) -> None:

@@ -38,11 +38,21 @@ _QUERY_EXAMPLE: JsonDict = {
 _RESPONSE_EXAMPLE: JsonDict = {
     "from": "2026-11-16T10:00:00Z",
     "to": "2026-11-17T10:00:00Z",
-    "results": [
-        {"sensor_id": 1, "metric": "temperature", "stat": "avg", "value": 11.5, "count": 24},
-        {"sensor_id": 1, "metric": "wind_speed", "stat": "max", "value": 9.8, "count": 24},
-        {"sensor_id": 2, "metric": "temperature", "stat": "avg", "value": 9.0, "count": 24},
-        {"sensor_id": 2, "metric": "wind_speed", "stat": "max", "value": 7.4, "count": 24},
+    "sensors": [
+        {
+            "sensor_id": 1,
+            "results": [
+                {"metric": "temperature", "stat": "avg", "value": 11.5, "count": 24},
+                {"metric": "wind_speed", "stat": "max", "value": 9.8, "count": 24},
+            ],
+        },
+        {
+            "sensor_id": 2,
+            "results": [
+                {"metric": "temperature", "stat": "avg", "value": 9.0, "count": 24},
+                {"metric": "wind_speed", "stat": "max", "value": 7.4, "count": 24},
+            ],
+        },
     ],
 }
 
@@ -90,11 +100,17 @@ class StatisticsQuery(BaseModel):
 
 
 class StatisticsResult(BaseModel):
-    sensor_id: int
     metric: Metric
     stat: Stat
     value: float | None = Field(description="`null` when the sensor has no readings in the window")
     count: int
+
+
+class SensorStatistics(BaseModel):
+    """One requested statistic per metric, in the order the query lists them."""
+
+    sensor_id: int
+    results: list[StatisticsResult]
 
 
 class StatisticsResponse(BaseModel):
@@ -104,4 +120,6 @@ class StatisticsResponse(BaseModel):
 
     from_: datetime = Field(alias="from")
     to: datetime
-    results: list[StatisticsResult]
+    sensors: list[SensorStatistics] = Field(
+        description="In the order of `sensor_ids`; when querying all sensors, sorted by `sensor_id`"
+    )

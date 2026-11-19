@@ -36,7 +36,7 @@ def test_window_is_inclusive_start_exclusive_end(
 
     (row,) = repository.aggregate(session, None, [Metric.TEMPERATURE], START, END)
 
-    assert row.n == 1 and row.sum == 1
+    assert row.reading_count == 1 and row.sum == 1
 
 
 def test_none_means_all_sensors_and_list_filters(

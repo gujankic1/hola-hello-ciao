@@ -52,7 +52,7 @@ How it behaves:
 
 - **Sensors are registered first.** Readings for an unknown sensor are rejected (404); sensors are never created implicitly.
 - **Readings** carry one or more metrics from a fixed set and the time they were measured (`recorded_at`, in UTC; values without an offset are taken as UTC). Reporting is idempotent: sending the same reading again changes nothing, and a different value for an already stored reading is rejected (409).
-- **Aggregates** return one result per sensor and metric: `min`, `max`, `sum` or `avg`, plus the number of readings used. Leave out the sensors to query all of them. The window defaults to the last 24 hours and can be 1 to 31 days. A sensor with no readings in the window gets `null`.
+- **Aggregates** are grouped by sensor, with one result per requested metric: `min`, `max`, `sum` or `avg`, plus the number of readings used. Leave out the sensors to query all of them. The window defaults to the last 24 hours and can be 1 to 31 days. A sensor with no readings in the window gets `null`.
 - **Errors** share one JSON shape, `{"error": {"code", "message", "details"}}`, with standard status codes (404, 409, 422, 500).
 
 Design decisions behind this: [architecture decisions](docs/arc42/09-architecture-decisions.md).

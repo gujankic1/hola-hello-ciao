@@ -17,7 +17,7 @@ class Aggregate(NamedTuple):
     max: float
     sum: float
     avg: float
-    n: int
+    reading_count: int
 
 
 def aggregate(

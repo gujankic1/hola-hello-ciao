@@ -34,7 +34,7 @@ def make(**kwargs: object) -> StatisticsQuery:
 
 
 def agg(sensor_id: int, metric: str = "temperature", n: int = 3) -> Aggregate:
-    return Aggregate(sensor_id, metric, min=10, max=60, sum=90, avg=30, n=n)
+    return Aggregate(sensor_id, metric, min=10, max=60, sum=90, avg=30, reading_count=n)
 
 
 @pytest.mark.usefixtures("ensure_sensors_exist")
@@ -44,25 +44,26 @@ def test_each_stat_is_picked_from_the_aggregate(
     repo.aggregate.return_value = [agg(1)]
     metrics = [{"name": "temperature", "stat": s.value} for s in Stat]
 
-    response = service.query(
+    response = service.compute_statistics(
         fake_session, make(sensor_ids=[1], metrics=metrics, **{"from": T0, "to": T1})
     )
 
     repo.aggregate.assert_called_once_with(fake_session, [1], [Metric.TEMPERATURE] * 4, T0, T1)
-    assert {r.stat: r.value for r in response.results} == {
+    (sensor,) = response.sensors
+    assert {r.stat: r.value for r in sensor.results} == {
         Stat.MIN: 10,
         Stat.MAX: 60,
         Stat.SUM: 90,
         Stat.AVG: 30,
     }
-    assert {r.count for r in response.results} == {3}
+    assert {r.count for r in sensor.results} == {3}
     assert (response.from_, response.to) == (T0, T1)
 
 
 def test_default_window_is_last_24_hours(
     repo: MagicMock, fake_session: NonCallableMagicMock
 ) -> None:
-    response = service.query(fake_session, make(metrics=[TEMP_AVG]))
+    response = service.compute_statistics(fake_session, make(metrics=[TEMP_AVG]))
 
     assert response.to - response.from_ == timedelta(hours=24)
     assert abs(response.to - datetime.now(UTC)) < timedelta(seconds=10)
@@ -73,7 +74,7 @@ def test_default_window_is_last_24_hours(
 def test_only_to_given_uses_24_hours_before_it(
     repo: MagicMock, fake_session: NonCallableMagicMock
 ) -> None:
-    response = service.query(fake_session, make(metrics=[TEMP_AVG], to=T0))
+    response = service.compute_statistics(fake_session, make(metrics=[TEMP_AVG], to=T0))
 
     assert response.from_ == T0 - timedelta(hours=24)
 
@@ -84,13 +85,30 @@ def test_requested_sensor_without_data_yields_null_value(
 ) -> None:
     repo.aggregate.return_value = [agg(1, "temperature")]
 
-    response = service.query(
+    response = service.compute_statistics(
         fake_session, make(sensor_ids=[1, 2], metrics=[{"name": "humidity", "stat": "avg"}])
     )
 
-    assert [(r.sensor_id, r.value, r.count) for r in response.results] == [
-        (1, None, 0),
-        (2, None, 0),
+    assert [(s.sensor_id, [(r.value, r.count) for r in s.results]) for s in response.sensors] == [
+        (1, [(None, 0)]),
+        (2, [(None, 0)]),
+    ]
+
+
+@pytest.mark.usefixtures("ensure_sensors_exist")
+def test_results_are_grouped_per_sensor_in_request_order(
+    repo: MagicMock, fake_session: NonCallableMagicMock
+) -> None:
+    repo.aggregate.return_value = [agg(1, "humidity"), agg(5), agg(1)]
+    metrics = [TEMP_AVG, {"name": "humidity", "stat": "max"}]
+
+    response = service.compute_statistics(fake_session, make(sensor_ids=[5, 1], metrics=metrics))
+
+    assert [
+        (s.sensor_id, [(r.metric, r.stat, r.value) for r in s.results]) for s in response.sensors
+    ] == [
+        (5, [(Metric.TEMPERATURE, Stat.AVG, 30), (Metric.HUMIDITY, Stat.MAX, None)]),
+        (1, [(Metric.TEMPERATURE, Stat.AVG, 30), (Metric.HUMIDITY, Stat.MAX, 60)]),
     ]
 
 
@@ -99,9 +117,9 @@ def test_all_sensors_lists_only_sensors_with_data_sorted_and_skips_existence_che
 ) -> None:
     repo.aggregate.return_value = [agg(9), agg(2)]
 
-    response = service.query(fake_session, make(metrics=[TEMP_AVG]))
+    response = service.compute_statistics(fake_session, make(metrics=[TEMP_AVG]))
 
-    assert [r.sensor_id for r in response.results] == [2, 9]
+    assert [s.sensor_id for s in response.sensors] == [2, 9]
     assert repo.aggregate.call_args.args[1] is None
     ensure_sensors_exist.assert_not_called()
 
@@ -112,7 +130,7 @@ def test_unknown_sensor_raises_not_found_before_querying(
     ensure_sensors_exist.side_effect = NotFoundError("Sensors not found: 999")
 
     with pytest.raises(NotFoundError):
-        service.query(fake_session, make(sensor_ids=[1, 999], metrics=[TEMP_AVG]))
+        service.compute_statistics(fake_session, make(sensor_ids=[1, 999], metrics=[TEMP_AVG]))
 
     ensure_sensors_exist.assert_called_once_with(fake_session, [1, 999])
     repo.aggregate.assert_not_called()

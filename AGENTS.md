@@ -80,6 +80,7 @@ Only create directories when there is something to put in them.
   - Unit tests test one unit (ADR-007): service tests replace the feature's `repository` module and other features' service functions with `create_autospec` mocks via `monkeypatch`, and pass `fake_session` (`tests/unit/conftest.py`). Repository tests use the real temp SQLite file. Integration tests use no mocks. Routers get no unit tests.
   - `tests/integration/test_<method>_<route>.py` has one file per route, named after it (`/sensors/{sensor_id}/readings` -> `test_post_sensors_readings.py`), and calls the app through `TestClient`.
   - Shared fixtures (temp SQLite file, `session`, `client`, `sensor_id`) live in `tests/conftest.py`. Every test directory has an `__init__.py` (same file names recur across features).
+- Descriptive names, also for loop and comprehension variables (`for aggregate in aggregates`, not `for a in ...`); only `i`/`j` counters and `e` for exceptions stay short. Inline one-liners; extract a function only for logic worth naming.
 - Type-hint all public functions. Routers stay thin; logic lives in services that are testable without HTTP.
 - Request/response bodies are Pydantic models; never return raw DB rows.
 - Use parameterised queries / ORM only. No string-built SQL.

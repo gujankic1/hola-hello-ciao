@@ -4,8 +4,11 @@ from sqlalchemy.orm import Session
 
 from hola_hello_ciao.features.sensors.service import ensure_sensors_exist
 from hola_hello_ciao.features.statistics import repository
+from hola_hello_ciao.features.statistics.repository import Aggregate
 from hola_hello_ciao.features.statistics.schemas import (
     DEFAULT_RANGE,
+    MetricStat,
+    SensorStatistics,
     Stat,
     StatisticsQuery,
     StatisticsResponse,
@@ -13,37 +16,57 @@ from hola_hello_ciao.features.statistics.schemas import (
 )
 
 
-def query(session: Session, data: StatisticsQuery) -> StatisticsResponse:
-    """Per sensor and metric statistic over the window; NotFoundError for unknown sensor ids."""
-    end = data.to or datetime.now(UTC)
-    start = data.from_ or end - DEFAULT_RANGE
+def compute_statistics(session: Session, query: StatisticsQuery) -> StatisticsResponse:
+    """Requested statistics per sensor over the window; NotFoundError for unknown sensor ids."""
+    window_end = query.to or datetime.now(UTC)
+    window_start = query.from_ or window_end - DEFAULT_RANGE
 
-    if data.sensor_ids is not None:
-        ensure_sensors_exist(session, data.sensor_ids)
+    if query.sensor_ids is not None:
+        ensure_sensors_exist(session, query.sensor_ids)
 
-    rows = repository.aggregate(
-        session, data.sensor_ids, [m.name for m in data.metrics], start, end
+    requested_metrics = [requested.name for requested in query.metrics]
+    aggregates = repository.aggregate(
+        session, query.sensor_ids, requested_metrics, window_start, window_end
     )
-    by_key = {(r.sensor_id, r.metric): r for r in rows}
-    sensor_ids = (
-        data.sensor_ids if data.sensor_ids is not None else sorted({r.sensor_id for r in rows})
+    aggregate_by_sensor_and_metric = {
+        (aggregate.sensor_id, aggregate.metric): aggregate for aggregate in aggregates
+    }
+    # Requested sensors appear even without data; otherwise only sensors with data, by id.
+    reported_sensor_ids = (
+        query.sensor_ids
+        if query.sensor_ids is not None
+        else sorted({aggregate.sensor_id for aggregate in aggregates})
     )
 
-    results = []
-    for sensor_id in sensor_ids:
-        for wanted in data.metrics:
-            row = by_key.get((sensor_id, wanted.name.value))
-            results.append(
-                StatisticsResult(
-                    sensor_id=sensor_id,
-                    metric=wanted.name,
-                    stat=wanted.stat,
-                    value=None if row is None else _stat_value(row, wanted.stat),
-                    count=0 if row is None else row.n,
+    sensor_statistics = [
+        SensorStatistics(
+            sensor_id=sensor_id,
+            results=[
+                _to_statistics_result(
+                    aggregate_by_sensor_and_metric.get((sensor_id, requested.name.value)),
+                    requested,
                 )
-            )
-    return StatisticsResponse(from_=start, to=end, results=results)
+                for requested in query.metrics
+            ],
+        )
+        for sensor_id in reported_sensor_ids
+    ]
+    return StatisticsResponse(from_=window_start, to=window_end, sensors=sensor_statistics)
 
 
-def _stat_value(row: repository.Aggregate, stat: Stat) -> float:
-    return {Stat.MIN: row.min, Stat.MAX: row.max, Stat.SUM: row.sum, Stat.AVG: row.avg}[stat]
+def _to_statistics_result(aggregate: Aggregate | None, requested: MetricStat) -> StatisticsResult:
+    """Map a repository aggregate to a result; no aggregate means no readings: null, count 0."""
+    if aggregate is None:
+        return StatisticsResult(metric=requested.name, stat=requested.stat, value=None, count=0)
+    value_by_stat = {
+        Stat.MIN: aggregate.min,
+        Stat.MAX: aggregate.max,
+        Stat.SUM: aggregate.sum,
+        Stat.AVG: aggregate.avg,
+    }
+    return StatisticsResult(
+        metric=requested.name,
+        stat=requested.stat,
+        value=value_by_stat[requested.stat],
+        count=aggregate.reading_count,
+    )

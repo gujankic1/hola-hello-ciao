@@ -92,7 +92,7 @@ Each ADR records a significant decision and why it was made. When the reasoning 
 
 - **Sensors are registered first;** ingest for an unknown sensor returns 404. The sensor ID is in the path, so path and body cannot disagree.
 - **The aggregate query is collection-level,** because one query spans many sensors. It uses `POST` with a typed body, because sensors, per-metric statistics and a window are structured input. The path names the operation: `POST` on a noun such as `/readings/statistics` reads as "create statistics".
-- **Results are per sensor and metric,** never pooled across sensors. The window is `[from, to)`; "one month" means 31 days. A requested sensor without readings gets `null`; when querying all sensors, only sensors with data appear.
+- **Results are per sensor and metric,** never pooled across sensors, and grouped by sensor: `sensors: [{sensor_id, results: [...]}]`, a list rather than a map keyed by ID, so IDs stay integers and order is kept. The window is `[from, to)`; "one month" means 31 days. A requested sensor without readings gets `null`; when querying all sensors, only sensors with data appear.
 - **No per-reading endpoint:** one ingest call becomes several rows (ADR-003), so there is no single reading entity worth an ID.
 
 **Alternatives for the query**

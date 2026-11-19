@@ -76,6 +76,11 @@ def test_unknown_sensor_returns_404(client: TestClient) -> None:
         },
         {
             "metrics": [{"name": "temperature", "stat": "avg"}],
+            "from": "2026-11-03T00:00:00Z",
+            "to": "2026-11-01T00:00:00Z",  # from after to
+        },
+        {
+            "metrics": [{"name": "temperature", "stat": "avg"}],
             "from": "2026-10-01T00:00:00Z",
             "to": "2026-11-17T00:00:00Z",  # longer than 31 days
         },

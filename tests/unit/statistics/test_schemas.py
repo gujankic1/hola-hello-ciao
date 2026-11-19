@@ -29,10 +29,16 @@ def test_window_bounds_are_inclusive(delta: timedelta) -> None:
 
 @pytest.mark.parametrize(
     "delta",
-    [timedelta(hours=23, minutes=59), timedelta(days=31, seconds=1), timedelta(days=-2)],
+    [timedelta(hours=23, minutes=59), timedelta(days=31, seconds=1)],
 )
 def test_window_outside_one_day_to_31_days_is_rejected(delta: timedelta) -> None:
     with pytest.raises(ValidationError, match="between 1 day and 31 days"):
+        make(**{"from": T0, "to": T0 + delta})
+
+
+@pytest.mark.parametrize("delta", [timedelta(0), timedelta(days=-2)])
+def test_from_not_before_to_is_rejected(delta: timedelta) -> None:
+    with pytest.raises(ValidationError, match="'from' must be before 'to'"):
         make(**{"from": T0, "to": T0 + delta})
 
 

@@ -82,6 +82,8 @@ class StatisticsQuery(BaseModel):
         if self.from_ is not None and self.to is None:
             raise ValueError("'to' is required when 'from' is given")
         if self.from_ is not None and self.to is not None:
+            if self.from_ >= self.to:
+                raise ValueError("'from' must be before 'to'")
             if not MIN_RANGE <= self.to - self.from_ <= MAX_RANGE:
                 raise ValueError("date range must be between 1 day and 31 days")
         return self

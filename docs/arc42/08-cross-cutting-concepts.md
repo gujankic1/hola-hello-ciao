@@ -20,7 +20,7 @@ All input is validated at the HTTP boundary by Pydantic schemas; services can as
 | `recorded_at` | Required; ISO 8601 or Unix time, no offset = UTC | 422 |
 | Sensor IDs (path and body) | `SensorId`: integer from 1 to 2^63-1, the SQLite rowid range | 422 |
 | `sensor_ids` list | 1 to 1000 items, no duplicates | 422 |
-| Statistics window | 1 to 31 days inclusive; `from` needs `to` (ADR-004) | 422 |
+| Statistics window | 1 to 31 days inclusive; `from` needs `to` and must be before it (ADR-004) | 422 |
 | Unknown sensor | Checked in the service against the database | 404 |
 
 One ingest call is all-or-nothing: one bad metric rejects the call, and all metrics are written in one transaction.

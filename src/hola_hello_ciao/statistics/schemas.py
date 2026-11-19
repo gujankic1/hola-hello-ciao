@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic.config import JsonDict
 
 from hola_hello_ciao.core.types import UtcDatetime
 from hola_hello_ciao.readings.metrics import Metric
@@ -27,10 +28,34 @@ class MetricStat(BaseModel):
     stat: Stat
 
 
-class StatisticsQuery(BaseModel):
-    """sensor_ids omitted = all sensors. Window: see ADR-004 (default last 24 h)."""
+# Shown in Swagger as the example body; keep it valid input.
+# No window, so "Try it out" covers the last 24 h and works against seeded data.
+_QUERY_EXAMPLE: JsonDict = {
+    "sensor_ids": [1, 2],
+    "metrics": [{"name": "temperature", "stat": "avg"}, {"name": "wind_speed", "stat": "max"}],
+}
+# FastAPI strips nulls from the served schema, so no null values here (see `value`).
+_RESPONSE_EXAMPLE: JsonDict = {
+    "from": "2026-11-16T10:00:00Z",
+    "to": "2026-11-17T10:00:00Z",
+    "results": [
+        {"sensor_id": 1, "metric": "temperature", "stat": "avg", "value": 11.5, "count": 24},
+        {"sensor_id": 1, "metric": "wind_speed", "stat": "max", "value": 9.8, "count": 24},
+        {"sensor_id": 2, "metric": "temperature", "stat": "avg", "value": 9.0, "count": 24},
+        {"sensor_id": 2, "metric": "wind_speed", "stat": "max", "value": 7.4, "count": 24},
+    ],
+}
 
-    model_config = ConfigDict(populate_by_name=True)
+
+class StatisticsQuery(BaseModel):
+    """Omit `sensor_ids` to query all sensors. Omit `from` and `to` for the last 24 hours, or
+    give only `to` for the 24 hours before it. A window must be 1 to 31 days."""
+
+    # Window rules: ADR-004. Docstrings here end up in OpenAPI.
+
+    model_config = ConfigDict(
+        populate_by_name=True, json_schema_extra={"examples": [_QUERY_EXAMPLE]}
+    )
 
     sensor_ids: list[SensorId] | None = Field(default=None, min_length=1, max_length=MAX_SENSOR_IDS)
     metrics: list[MetricStat] = Field(min_length=1)
@@ -66,12 +91,14 @@ class StatisticsResult(BaseModel):
     sensor_id: int
     metric: Metric
     stat: Stat
-    value: float | None  # null: no readings in the window
+    value: float | None = Field(description="`null` when the sensor has no readings in the window")
     count: int
 
 
 class StatisticsResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(
+        populate_by_name=True, json_schema_extra={"examples": [_RESPONSE_EXAMPLE]}
+    )
 
     from_: datetime = Field(alias="from")
     to: datetime

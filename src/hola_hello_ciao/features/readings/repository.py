@@ -13,28 +13,19 @@ class ReadingRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def find_stored_values(
-        self, sensor_id: int, metrics: list[Metric], recorded_at: datetime
-    ) -> dict[Metric, float]:
-        """Already stored values for these metrics at exactly recorded_at (UTC)."""
-        query = select(Reading.metric, Reading.value).where(
-            Reading.sensor_id == sensor_id,
-            Reading.metric.in_([metric.value for metric in metrics]),
-            Reading.recorded_at == recorded_at.replace(tzinfo=None),
-        )
-        with storage_errors(self._session, "Could not load existing readings"):
-            return {Metric(metric): value for metric, value in self._session.execute(query)}
-
-    def add_many(
+    def add_many_unless_conflicting(
         self, sensor_id: int, value_by_metric: dict[Metric, float], recorded_at: datetime
-    ) -> None:
-        """Store one row per metric in one transaction. recorded_at must be UTC; stored naive.
+    ) -> list[Metric]:
+        """Store one row per metric, all or nothing; return the metrics that conflict.
 
-        Rows whose (sensor_id, metric, recorded_at) already exists are skipped, so a concurrent
-        retry of the same request cannot fail or store a duplicate.
+        recorded_at must be UTC; it is stored naive. A metric already stored with the same
+        value is skipped, so a retry stores nothing new. If any metric is already stored with a
+        different value, nothing from this call is stored and those metrics are returned.
+
+        The insert and the read-back run in one transaction. The INSERT takes SQLite's write
+        lock and holds it until commit or rollback, so no other request can write in between:
+        concurrent calls with different values cannot both succeed (ADR-003).
         """
-        if not value_by_metric:
-            return
         recorded_at_naive_utc = recorded_at.replace(tzinfo=None)
         rows = [
             {
@@ -45,6 +36,24 @@ class ReadingRepository:
             }
             for metric, value in value_by_metric.items()
         ]
+        stored_values_query = select(Reading.metric, Reading.value).where(
+            Reading.sensor_id == sensor_id,
+            Reading.metric.in_([metric.value for metric in value_by_metric]),
+            Reading.recorded_at == recorded_at_naive_utc,
+        )
         with storage_errors(self._session, "Could not store the reading"):
             self._session.execute(insert(Reading).values(rows).on_conflict_do_nothing())
-            self._session.commit()
+            stored_value_by_metric = {
+                Metric(metric): value
+                for metric, value in self._session.execute(stored_values_query)
+            }
+            conflicting_metrics = [
+                metric
+                for metric, value in value_by_metric.items()
+                if stored_value_by_metric[metric] != value
+            ]
+            if conflicting_metrics:
+                self._session.rollback()
+            else:
+                self._session.commit()
+            return conflicting_metrics

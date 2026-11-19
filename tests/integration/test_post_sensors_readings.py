@@ -104,7 +104,7 @@ def test_storage_failure_returns_error_shape(
     assert response.status_code == 500
     assert response.json()["error"] == {
         "code": "storage_error",
-        "message": "Could not load existing readings",
+        "message": "Could not store the reading",
     }
 
 
@@ -121,15 +121,15 @@ def test_exact_retry_returns_201_and_stores_no_duplicate(
     assert len(all_rows(engine)) == 1
 
 
-def test_different_value_at_same_time_returns_409(
+def test_different_value_at_same_time_returns_409_and_stores_nothing_from_the_call(
     client: TestClient, engine: Engine, sensor_id: int
 ) -> None:
     client.post(url(sensor_id), json={"metrics": {"temperature": 21.5}, "recorded_at": TS})
 
     response = client.post(
-        url(sensor_id), json={"metrics": {"temperature": 22.0}, "recorded_at": TS}
+        url(sensor_id), json={"metrics": {"temperature": 22.0, "humidity": 40}, "recorded_at": TS}
     )
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "conflict"
-    assert [r.value for r in all_rows(engine)] == [21.5]
+    assert [(row.metric, row.value) for row in all_rows(engine)] == [("temperature", 21.5)]

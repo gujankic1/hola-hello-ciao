@@ -17,26 +17,15 @@ class ReadingService:
         NotFoundError if the sensor is unknown.
         """
         sensor = self._sensor_service.get_sensor(sensor_id)
-        stored_value_by_metric = self._repository.find_stored_values(
-            sensor.id, list(reading.metrics), reading.recorded_at
+        conflicting_metrics = self._repository.add_many_unless_conflicting(
+            sensor.id, reading.metrics, reading.recorded_at
         )
-        conflicting_metric_names = sorted(
-            metric.value
-            for metric, stored_value in stored_value_by_metric.items()
-            if stored_value != reading.metrics[metric]
-        )
-        if conflicting_metric_names:
+        if conflicting_metrics:
+            conflicting_metric_names = sorted(metric.value for metric in conflicting_metrics)
             raise ConflictError(
                 f"Sensor {sensor.id} already has different values at "
                 f"{reading.recorded_at.isoformat()} for: {', '.join(conflicting_metric_names)}"
             )
-
-        new_value_by_metric = {
-            metric: value
-            for metric, value in reading.metrics.items()
-            if metric not in stored_value_by_metric
-        }
-        self._repository.add_many(sensor.id, new_value_by_metric, reading.recorded_at)
         return ReadingCreated(
             sensor_id=sensor.id, recorded_at=reading.recorded_at, metrics=reading.metrics
         )

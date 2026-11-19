@@ -44,6 +44,7 @@ Routing errors (unknown path or method) keep FastAPI's default `{"detail": ...}`
 
 - One SQLAlchemy `Session` per request (`core/deps.py`), injected with `Depends` into the repositories; services only see repositories (ADR-008).
 - Repositories own the transaction: they commit on success, and `storage_errors` rolls back on failure.
+- Ingest's idempotency check (ADR-003) is one atomic step in the repository: `INSERT … ON CONFLICT DO NOTHING`, then the stored values are read back in the same transaction, which is rolled back if any of them differs. The INSERT holds SQLite's write lock until commit, so concurrent requests cannot interleave. Checking *before* inserting was not enough: concurrent calls with different values all saw no row, the later inserts were skipped, and their clients still got 201. The comparison therefore lives in the repository, inside the transaction; the service turns the conflicting metrics into a 409.
 - Every connection sets two `PRAGMA`s (`core/db.py`):
   - `foreign_keys=ON` (off by default in SQLite, per connection): the database rejects a reading for an unknown sensor, backing up the service's 404 check.
   - `journal_mode=WAL`: readers see a snapshot and never block on the writer, or the other way round; there is still one writer at a time. The `-wal`/`-shm` files are part of the database, so a backup must use `sqlite3 .backup`, not a file copy.
